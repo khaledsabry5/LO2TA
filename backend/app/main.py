@@ -15,6 +15,14 @@ from .routers import auth, manager, orders, products
 async def lifespan(_: FastAPI):
     # For production schema evolution, introduce Alembic migrations.
     Base.metadata.create_all(bind=engine)
+    try:
+        from .database import SessionLocal
+        from .seed import ensure_first_manager, seed_products
+        with SessionLocal() as db:
+            m = ensure_first_manager(db)
+            seed_products(db, m)
+    except Exception as e:
+        print(f"[WARN] Auto-seed skipped: {e}")
     yield
 
 

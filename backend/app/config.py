@@ -1,13 +1,17 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DEFAULT_DB_URL = f"sqlite:///{BASE_DIR.as_posix()}/lo2ta.db"
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     APP_NAME: str = "Lo2ta Accessories Store API"
-    DATABASE_URL: str = "postgresql+psycopg://lo2ta:lo2ta@localhost:5432/lo2ta"
+    DATABASE_URL: str = DEFAULT_DB_URL
 
     JWT_SECRET: str = "dev-only-insecure-secret-change-me"
     JWT_ALGORITHM: str = "HS256"
