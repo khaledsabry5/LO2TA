@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, select
+from sqlalchemy.exc import OperationalError
 
 from ..deps import DB, CurrentUser
 from ..models import User, UserRole
@@ -33,11 +34,38 @@ def register(data: CustomerRegister, db: DB):
 
 @router.post("/login", response_model=Token)
 def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DB):
-    user = db.scalar(select(User).where(func.lower(User.email) == form.username.lower()))
-    if not user or not verify_password(form.password, user.hashed_password):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "البريد الإلكتروني أو كلمة المرور غير صحيحة")
+    try:
+        user = db.scalar(select(User).where(func.lower(User.email) == form.username.lower()))
+    except OperationalError:
+        # If database tables are not yet created or connection is broken, auto-initialize or raise 401
+        try:
+            from ..database import Base, engine
+            from ..seed import ensure_first_manager, seed_products
+            Base.metadata.create_all(bind=engine)
+            manager = ensure_first_manager(db)
+            seed_products(db, manager)
+            user = db.scalar(select(User).where(func.lower(User.email) == form.username.lower()))
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password",
+            )
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+        )
+
+    if not verify_password(form.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+        )
+
     if not user.is_active:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "الحساب موقوف")
+
     return Token(access_token=create_access_token(user.id, user.role.value))
 
 

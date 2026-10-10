@@ -13,16 +13,20 @@ from .routers import auth, manager, orders, products
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    # For production schema evolution, introduce Alembic migrations.
-    Base.metadata.create_all(bind=engine)
     try:
-        from .database import SessionLocal
+        from .database import Base, SessionLocal, engine
         from .seed import ensure_first_manager, seed_products
+
+        # a) Create all database tables using Base.metadata.create_all
+        Base.metadata.create_all(bind=engine)
+
+        # b) Inject default Manager and c) Populate demo products
         with SessionLocal() as db:
-            m = ensure_first_manager(db)
-            seed_products(db, m)
+            manager = ensure_first_manager(db)
+            seed_products(db, manager)
+        print("[OK] Database tables created and demo data seeded successfully on startup")
     except Exception as e:
-        print(f"[WARN] Auto-seed skipped: {e}")
+        print(f"[WARN] Database startup initialization or seed skipped: {e}")
     yield
 
 
