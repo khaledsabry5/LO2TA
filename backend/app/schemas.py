@@ -6,6 +6,7 @@ enforced at the serialization layer as well as the route layer:
   * OrderFulfillmentOut   -> admins (shipping data only, no account data)
   * OrderManagerOut       -> managers (full data incl. customer account)
 """
+import re
 from datetime import datetime
 from decimal import Decimal
 from typing import Annotated, Literal
@@ -18,6 +19,39 @@ Money = Annotated[Decimal, PlainSerializer(lambda v: float(v), return_type=float
 
 EGYPT_PHONE_REGEX = r"^\+201[0125][0-9]{8}$"
 STAFF_PASSWORD_REGEX = r"^[a-zA-Z0-9]{4}$"
+
+
+def normalize_egyptian_phone(value: str | None) -> str | None:
+    """Normalizes Egyptian phone numbers into unified international format (+201...).
+
+    Handles inputs like:
+    - 01096417408 -> +201096417408
+    - 011..., 012..., 015... -> +201...
+    - +2010... -> +2010...
+    - 201... -> +201...
+    - Strips whitespace, dashes, parentheses, and converts Arabic digits.
+    """
+    if not value or not isinstance(value, str):
+        return value
+    arabic_digits = "٠١٢٣٤٥٦٧٨٩"
+    cleaned = value.strip()
+    for i, d in enumerate(arabic_digits):
+        cleaned = cleaned.replace(d, str(i))
+    cleaned = re.sub(r"[\s\-\(\)\.]+", "", cleaned)
+    if not cleaned:
+        return cleaned
+
+    if cleaned.startswith("+201"):
+        return cleaned
+    if cleaned.startswith("00201"):
+        return "+" + cleaned[2:]
+    if cleaned.startswith("201"):
+        return "+" + cleaned
+    if cleaned.startswith("01"):
+        return "+2" + cleaned
+    if cleaned.startswith("1") and len(cleaned) == 10 and cleaned[1] in "0125":
+        return "+20" + cleaned
+    return cleaned
 
 
 class ORM(BaseModel):
@@ -35,6 +69,11 @@ class CustomerRegister(BaseModel):
     email: EmailStr
     full_name: str = Field(min_length=3, max_length=150)
     phone: str = Field(pattern=EGYPT_PHONE_REGEX, description="Egyptian mobile number (+201...)")
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def normalize_phone_number(cls, v: str) -> str:
+        return normalize_egyptian_phone(v)
 
     @field_validator("full_name")
     @classmethod
@@ -57,6 +96,11 @@ class StaffCreate(BaseModel):
     full_name: str = Field(min_length=2, max_length=150)
     phone: str | None = Field(default=None, pattern=EGYPT_PHONE_REGEX)
     role: Literal["manager", "admin"]
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def normalize_staff_phone(cls, v: str | None) -> str | None:
+        return normalize_egyptian_phone(v)
 
 
 class StaffUpdate(BaseModel):
@@ -193,6 +237,11 @@ class OrderCreate(BaseModel):
     shipping_city: str = Field(min_length=2, max_length=100)
     shipping_address: str = Field(min_length=5, max_length=500)
     notes: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("shipping_phone", mode="before")
+    @classmethod
+    def normalize_shipping_phone(cls, v: str) -> str:
+        return normalize_egyptian_phone(v)
 
     @field_validator("shipping_name")
     @classmethod

@@ -77,10 +77,18 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    full_name: Mapped[str] = mapped_column(String(150))
-    phone: Mapped[str | None] = mapped_column(String(30))
+    full_name: Mapped[str] = mapped_column(String(150), unique=True, index=True)
+    phone: Mapped[str | None] = mapped_column(String(30), unique=True, index=True)
     role: Mapped[UserRole] = mapped_column(pg_enum(UserRole, "user_role"), default=UserRole.CUSTOMER, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    @property
+    def phone_number(self) -> str | None:
+        return self.phone
+
+    @phone_number.setter
+    def phone_number(self, value: str | None) -> None:
+        self.phone = value
 
     # Which manager created this staff account (null for self-registered customers)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))

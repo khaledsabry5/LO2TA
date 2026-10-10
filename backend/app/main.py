@@ -35,7 +35,15 @@ async def lifespan(_: FastAPI):
             manager = ensure_first_manager(db)
             ensure_first_admin(db)
             seed_products(db, manager)
-        print("[OK] Database tables created and demo data seeded successfully on startup")
+
+        # d) Ensure duplicate accounts are cleaned and unique indexes enforced safely
+        try:
+            from cleanup_db import cleanup_and_deduplicate
+            cleanup_and_deduplicate()
+        except Exception as e:
+            print(f"[WARN] Deduplication check skipped: {e}")
+
+        print("[OK] Database tables created, deduplicated, and demo data seeded successfully on startup")
     except Exception as e:
         print(f"[WARN] Database startup initialization or seed skipped: {e}")
     yield

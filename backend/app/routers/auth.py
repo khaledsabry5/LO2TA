@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 
 from ..deps import DB, CurrentUser
 from ..models import User, UserRole
@@ -13,6 +14,7 @@ from ..schemas import (
     STAFF_PASSWORD_REGEX,
     Token,
     UserOut,
+    normalize_egyptian_phone,
 )
 from ..security import create_access_token, hash_password, verify_password
 
@@ -25,43 +27,47 @@ def register(data: CustomerRegister, db: DB):
 
     Enforces:
     - Full Name: At least two names (handled by schema validator)
-    - Phone: Egyptian format (+201[0125]xxxxxxxx)
+    - Phone: Normalized Egyptian format (+201[0125]xxxxxxxx)
     - Password: None required
+    - Strictly prevents duplicate customer accounts based on Email, Phone, and Full Name.
     """
-    email = data.email.lower()
-    phone = data.phone.strip()
+    email = data.email.strip().lower()
+    phone = normalize_egyptian_phone(data.phone.strip())
+    full_name = " ".join(data.full_name.strip().split())
 
+    # Pre-registration check: query DB using or_ from SQLAlchemy to check if ANY user
+    # already exists with the provided email, normalized phone, OR full name
     existing = db.scalar(
-        select(User).where(or_(func.lower(User.email) == email, User.phone == phone))
+        select(User).where(
+            or_(
+                func.lower(User.email) == email,
+                User.phone == phone,
+                func.lower(User.full_name) == func.lower(full_name),
+            )
+        )
     )
     if existing:
-        if existing.role != UserRole.CUSTOMER:
-            raise HTTPException(status.HTTP_409_CONFLICT, "هذا الحساب مخصص لإدارة المتجر")
-        # For customer convenience: issue token directly if already registered
-        token = create_access_token(existing.id, existing.role.value)
-        return {
-            "access_token": token,
-            "token_type": "bearer",
-            "user": {
-                "id": existing.id,
-                "email": existing.email,
-                "full_name": existing.full_name,
-                "phone": existing.phone,
-                "role": existing.role.value,
-                "is_active": existing.is_active,
-                "created_at": existing.created_at,
-            },
-        }
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="الاسم أو البريد الإلكتروني أو رقم الهاتف مستخدم بالفعل في حساب آخر.",
+        )
 
     user = User(
         email=email,
         hashed_password="passwordless",  # Passwordless customer
-        full_name=data.full_name.strip(),
+        full_name=full_name,
         phone=phone,
         role=UserRole.CUSTOMER,
     )
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="الاسم أو البريد الإلكتروني أو رقم الهاتف مستخدم بالفعل في حساب آخر.",
+        )
     db.refresh(user)
 
     token = create_access_token(user.id, user.role.value)
@@ -85,9 +91,11 @@ def passwordless_login(data: CustomerPasswordlessLogin, db: DB):
     """Passwordless login for customers by Egyptian phone or email."""
     raw = data.identifier.strip()
     clean_lower = raw.lower()
+    norm_phone = normalize_egyptian_phone(raw)
 
-    # Search by email, exact phone, or prefixed +20 phone
     conditions = [func.lower(User.email) == clean_lower, User.phone == raw]
+    if norm_phone:
+        conditions.append(User.phone == norm_phone)
     if raw.startswith("01"):
         conditions.append(User.phone == f"+2{raw}")
     elif raw.startswith("1"):
