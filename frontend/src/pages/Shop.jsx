@@ -82,7 +82,7 @@ export default function Shop() {
 
   const title = q
     ? `نتائج البحث عن «${q}»`
-    : [gender && `قسم ${gender === 'men' ? 'الرجال' : 'النساء'}`, category && CATEGORY_LABELS[category], discounted && 'العروض']
+    : [gender && (gender === 'men' ? 'الرجال' : 'النساء'), category && CATEGORY_LABELS[category], discounted && 'العروض']
         .filter(Boolean)
         .join(' · ') || 'جميع المنتجات'
 

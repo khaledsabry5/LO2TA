@@ -127,9 +127,9 @@ export default function ProductsAdmin() {
             onChange={(e) => setGender(e.target.value)}
             className="input text-sm"
           >
-            <option value="">جميع الأقسام</option>
-            <option value="men">قسم الرجال</option>
-            <option value="women">قسم النساء</option>
+            <option value="">جميع الفئات</option>
+            <option value="men">الرجال</option>
+            <option value="women">النساء</option>
           </select>
         </div>
       </div>

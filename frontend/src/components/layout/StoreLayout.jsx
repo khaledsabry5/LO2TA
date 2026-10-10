@@ -6,8 +6,8 @@ import { useAuth } from '../../context/AuthContext'
 import { useCart } from '../../context/CartContext'
 
 const NAV = [
-  { to: '/shop?gender=men', label: 'قسم الرجال' },
-  { to: '/shop?gender=women', label: 'قسم النساء' },
+  { to: '/shop?gender=men', label: 'الرجال' },
+  { to: '/shop?gender=women', label: 'النساء' },
   { to: '/shop?category=shoes', label: 'الأحذية' },
   { to: '/shop?category=bags', label: 'الشنط' },
   { to: '/shop?category=watches', label: 'الساعات' },
@@ -190,8 +190,8 @@ function Footer() {
         <div>
           <h4 className="mb-3 font-bold text-cream">الأقسام</h4>
           <ul className="space-y-2 text-sm text-white/70">
-            <li><Link to="/shop?gender=men" className="hover:text-white">قسم الرجال</Link></li>
-            <li><Link to="/shop?gender=women" className="hover:text-white">قسم النساء</Link></li>
+            <li><Link to="/shop?gender=men" className="hover:text-white">الرجال</Link></li>
+            <li><Link to="/shop?gender=women" className="hover:text-white">النساء</Link></li>
             <li><Link to="/shop?discounted=true" className="hover:text-white">العروض</Link></li>
           </ul>
         </div>

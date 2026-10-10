@@ -2,8 +2,8 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 
 const SECTIONS = [
-  { key: 'men', title: 'قسم الرجال', subtitle: 'أناقة كلاسيكية بلمسة عصرية', img: '/images/men.jpg' },
-  { key: 'women', title: 'قسم النساء', subtitle: 'تفاصيل راقية لكل إطلالة', img: '/images/women.jpg' },
+  { key: 'men', title: 'الرجال', subtitle: 'أناقة كلاسيكية بلمسة عصرية', img: '/images/men.jpg' },
+  { key: 'women', title: 'النساء', subtitle: 'تفاصيل راقية لكل إطلالة', img: '/images/women.jpg' },
 ]
 
 export default function GenderSections() {

@@ -1,23 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, Heart, ShoppingCart } from 'lucide-react'
+import { Heart } from 'lucide-react'
 import PriceTag from './PriceTag'
 import { CATEGORY_SINGULAR, GENDER_LABELS, firstImage } from '../lib/format'
-import { useCart } from '../context/CartContext'
 
 export default function ProductCard({ product, index = 0 }) {
-  const { add } = useCart()
-  const [added, setAdded] = useState(false)
   const [liked, setLiked] = useState(false)
   const img = firstImage(product)
-
-  const handleAdd = (e) => {
-    e.preventDefault()
-    if (!product.in_stock) return
-    add(product)
-    setAdded(true)
-    setTimeout(() => setAdded(false), 1200)
-  }
 
   return (
     <article className="group relative flex flex-col animate-fade-up">
@@ -52,6 +41,7 @@ export default function ProductCard({ product, index = 0 }) {
           type="button"
           onClick={(e) => {
             e.preventDefault()
+            e.stopPropagation()
             setLiked((v) => !v)
           }}
           aria-label="أضف للمفضلة"
@@ -65,23 +55,21 @@ export default function ProductCard({ product, index = 0 }) {
         <p className="text-[0.7rem] font-medium text-ink-muted">
           {CATEGORY_SINGULAR[product.category]} · {GENDER_LABELS[product.gender]}
         </p>
-        <Link to={`/product/${product.id}`} className="line-clamp-1 text-sm font-bold text-ink hover:underline sm:text-[0.95rem]">
+        <Link
+          to={`/product/${product.id}`}
+          className="line-clamp-1 text-sm font-bold text-ink hover:underline sm:text-[0.95rem]"
+        >
           {product.name}
         </Link>
-        <div className="mt-auto flex items-end justify-between gap-2 pt-1">
+        <div className="mt-auto flex items-center justify-between gap-2 pt-1.5">
           <PriceTag product={product} />
-          <button
-            type="button"
-            id={`add-to-cart-${product.id}`}
-            onClick={handleAdd}
-            disabled={!product.in_stock}
-            aria-label="أضف إلى السلة"
-            className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white transition-all duration-200 active:scale-90 disabled:opacity-40 ${
-              added ? 'bg-azure' : 'bg-ink hover:bg-ink-soft'
-            }`}
+          <Link
+            to={`/product/${product.id}`}
+            id={`view-details-${product.id}`}
+            className="product-card-details-btn"
           >
-            {added ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
-          </button>
+            التفاصيل
+          </Link>
         </div>
       </div>
     </article>

@@ -44,6 +44,8 @@
   .skeleton::after { content: ''; @apply absolute inset-0 animate-shimmer bg-gradient-to-l from-transparent via-white/70 to-transparent; transform: translateX(100%); }
 
   .chip { @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold; }
+
+  .product-card-details-btn { @apply inline-flex items-center justify-center rounded-xl bg-cream px-3 py-1.5 text-xs font-extrabold text-ink transition-all duration-200 hover:bg-ink hover:text-white; }
 }
 
 @layer utilities {
