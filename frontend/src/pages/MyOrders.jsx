@@ -57,7 +57,11 @@ export default function MyOrders() {
               <ul className="mt-3 space-y-1 text-sm">
                 {o.items.map((i) => (
                   <li key={i.id} className="flex justify-between gap-2">
-                    <span>{i.product_name} × {i.quantity}</span>
+                    <span>
+                      {i.product_name} × {i.quantity}
+                      {i.selected_size ? ` · مقاس ${i.selected_size}` : ''}
+                      {i.selected_color ? ` · لون ${i.selected_color}` : ''}
+                    </span>
                     <span>{money(i.line_total)}</span>
                   </li>
                 ))}

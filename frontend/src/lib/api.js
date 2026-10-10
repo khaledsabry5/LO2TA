@@ -61,6 +61,7 @@ export async function request(path, { method = 'GET', body, form, files, params 
 export const api = {
   // auth
   login: (email, password) => request('/auth/login', { method: 'POST', form: { username: email, password } }),
+  passwordlessLogin: (identifier) => request('/auth/passwordless-login', { method: 'POST', body: { identifier } }),
   register: (data) => request('/auth/register', { method: 'POST', body: data }),
   me: () => request('/auth/me'),
 

@@ -103,6 +103,8 @@ def update_staff(user_id: int, data: StaffUpdate, db: DB, manager: ManagerUser):
         user.is_active = data.is_active
     if data.role is not None:
         user.role = UserRole(data.role)
+    if data.password is not None:
+        user.hashed_password = hash_password(data.password)
     db.commit()
     db.refresh(user)
     return user

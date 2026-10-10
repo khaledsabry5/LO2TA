@@ -301,30 +301,33 @@ export default function Staff() {
               </div>
 
               <div>
-                <label className="label" htmlFor="staff-phone">رقم الجوال (اختياري)</label>
+                <label className="label" htmlFor="staff-phone">رقم الهاتف المصري (+20) (اختياري)</label>
                 <input
                   id="staff-phone"
                   dir="ltr"
-                  placeholder="+966 50 000 0000"
+                  placeholder="+2010xxxxxxxx"
                   value={form.phone}
                   onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                  className="input text-end"
+                  className="input text-end font-mono"
                 />
               </div>
 
               <div>
-                <label className="label" htmlFor="staff-pass">كلمة المرور المؤقتة</label>
+                <label className="label" htmlFor="staff-pass">كلمة المرور (4 خانات بالضبط)</label>
                 <input
                   id="staff-pass"
                   type="password"
                   dir="ltr"
                   required
-                  minLength={8}
-                  placeholder="8 أحرف على الأقل"
+                  maxLength={4}
+                  placeholder="4 خانات (مثال: 1234)"
                   value={form.password}
                   onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  className="input text-end"
+                  className="input text-end font-mono tracking-widest text-base"
                 />
+                <span className="mt-1 block text-[0.65rem] text-ink-muted">
+                  سياسة أمان الإدارة: 4 خانات وحروف أو أرقام إنجليزية فقط (Regex: ^[a-zA-Z0-9]&#123;4&#125;$)
+                </span>
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t border-black/5">

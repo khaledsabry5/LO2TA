@@ -36,9 +36,22 @@ export function AuthProvider({ children }) {
     return loadMe()
   }
 
+  const passwordlessLogin = async (identifier) => {
+    const res = await api.passwordlessLogin(identifier)
+    if (res?.access_token) {
+      tokenStore.set(res.access_token)
+      return loadMe()
+    }
+    return null
+  }
+
   const register = async (data) => {
-    await api.register(data)
-    return login(data.email, data.password)
+    const res = await api.register(data)
+    if (res?.access_token) {
+      tokenStore.set(res.access_token)
+      return loadMe()
+    }
+    return null
   }
 
   const logout = () => {
@@ -51,6 +64,7 @@ export function AuthProvider({ children }) {
       user,
       loading,
       login,
+      passwordlessLogin,
       register,
       logout,
       isManager: user?.role === 'manager',

@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     MAX_VIDEO_MB: int = 50
 
     FIRST_MANAGER_EMAIL: str = "manager@lo2ta.com"
-    FIRST_MANAGER_PASSWORD: str = "ChangeMe123!"
+    FIRST_MANAGER_PASSWORD: str = "1234"
     FIRST_MANAGER_NAME: str = "مدير المتجر"
 
 

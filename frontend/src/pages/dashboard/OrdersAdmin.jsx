@@ -181,10 +181,20 @@ export default function OrdersAdmin() {
                         key={item.id}
                         className="flex items-center justify-between p-3 text-xs sm:text-sm"
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Package className="h-4 w-4 text-ink-muted" />
                           <span className="font-bold text-ink">{item.product_name}</span>
                           <span className="text-ink-muted">× {item.quantity}</span>
+                          {item.selected_size && (
+                            <span className="rounded bg-cream px-1.5 py-0.5 text-[0.7rem] font-extrabold text-ink">
+                              مقاس {item.selected_size}
+                            </span>
+                          )}
+                          {item.selected_color && (
+                            <span className="rounded bg-cream px-1.5 py-0.5 text-[0.7rem] font-extrabold text-ink">
+                              لون {item.selected_color}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="font-extrabold text-ink">

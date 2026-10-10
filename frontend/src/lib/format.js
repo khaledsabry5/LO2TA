@@ -1,5 +1,5 @@
-// Change currency in one place (reference design uses Saudi Riyal "ر.س")
-export const CURRENCY = 'ر.س'
+// Egyptian localization: Egyptian Pound "ج.م"
+export const CURRENCY = 'ج.م'
 
 const nf = new Intl.NumberFormat('ar-EG-u-nu-latn', { maximumFractionDigits: 2 })
 

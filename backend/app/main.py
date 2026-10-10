@@ -20,6 +20,16 @@ async def lifespan(_: FastAPI):
         # a) Create all database tables using Base.metadata.create_all
         Base.metadata.create_all(bind=engine)
 
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            if "sqlite" in engine.url.drivername:
+                for col in ("selected_size INTEGER", "selected_color VARCHAR(50)"):
+                    try:
+                        conn.execute(text(f"ALTER TABLE order_items ADD COLUMN {col}"))
+                        conn.commit()
+                    except Exception:
+                        pass
+
         # b) Inject default Manager & Admin and c) Populate demo products
         with SessionLocal() as db:
             manager = ensure_first_manager(db)

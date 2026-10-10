@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from ..deps import DB, CustomerUser, StaffUser
-from ..models import ACTIVE_ORDER_STATUSES, Order, OrderItem, OrderStatus, Product, UserRole
+from ..models import ACTIVE_ORDER_STATUSES, Category, Order, OrderItem, OrderStatus, Product, UserRole
 from ..schemas import OrderCreate, OrderFulfillmentOut, OrderOut, OrderStatusUpdate
 
 router = APIRouter(prefix="/orders", tags=["orders"])
@@ -30,24 +30,38 @@ def _restock(db, order: Order) -> None:
     ids = [i.product_id for i in order.items if i.product_id]
     if not ids:
         return
-    products = {p.id: p for p in db.scalars(select(Product).where(Product.id.in_(ids)).with_for_update())}
+    products = {
+        p.id: p
+        for p in db.scalars(
+            select(Product)
+            .where(Product.id.in_(ids))
+            .options(selectinload(Product.sizes))
+            .with_for_update()
+        )
+    }
     for item in order.items:
         if item.product_id in products:
-            products[item.product_id].stock += item.quantity
+            prod = products[item.product_id]
+            prod.stock += item.quantity
+            if item.selected_size and prod.sizes:
+                size_obj = next((s for s in prod.sizes if s.size == item.selected_size), None)
+                if size_obj:
+                    size_obj.stock += item.quantity
 
 
 # ============================== CUSTOMER ==================================== #
 @router.post("", response_model=OrderOut, status_code=status.HTTP_201_CREATED)
 def checkout(data: OrderCreate, db: DB, user: CustomerUser):
     """Place an order. Prices are computed server-side; stock is locked & decremented atomically."""
-    qty_by_product: dict[int, int] = {}
-    for item in data.items:
-        qty_by_product[item.product_id] = qty_by_product.get(item.product_id, 0) + item.quantity
-
+    product_ids = list({item.product_id for item in data.items})
     products = {
         p.id: p
         for p in db.scalars(
-            select(Product).where(Product.id.in_(qty_by_product.keys())).order_by(Product.id).with_for_update()
+            select(Product)
+            .where(Product.id.in_(product_ids))
+            .options(selectinload(Product.sizes))
+            .order_by(Product.id)
+            .with_for_update()
         )
     }
 
@@ -60,22 +74,40 @@ def checkout(data: OrderCreate, db: DB, user: CustomerUser):
         shipping_address=data.shipping_address.strip(),
         notes=data.notes,
     )
+
     subtotal = Decimal("0")
     total = Decimal("0")
-    for pid, qty in qty_by_product.items():
-        product = products.get(pid)
+
+    for item in data.items:
+        product = products.get(item.product_id)
         if not product or not product.is_active:
             db.rollback()
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"المنتج رقم {pid} غير متاح")
-        if product.stock < qty:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"المنتج رقم {item.product_id} غير متاح")
+
+        # Size inventory check for shoes
+        if product.category == Category.SHOES and product.sizes:
+            if not item.selected_size:
+                db.rollback()
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, f"يرجى تحديد المقاس للمنتج «{product.name}»")
+            size_obj = next((s for s in product.sizes if s.size == item.selected_size), None)
+            if not size_obj or size_obj.stock < item.quantity:
+                db.rollback()
+                available = size_obj.stock if size_obj else 0
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    f"الكمية المتاحة من المقاس {item.selected_size} لمنتج «{product.name}» هي {available} فقط",
+                )
+            size_obj.stock -= item.quantity
+
+        if product.stock < item.quantity:
             db.rollback()
             raise HTTPException(status.HTTP_409_CONFLICT, f"الكمية المتاحة من «{product.name}» هي {product.stock} فقط")
 
-        product.stock -= qty
+        product.stock -= item.quantity
         unit = Decimal(product.price)
         final_unit = product.final_price
-        line = final_unit * qty
-        subtotal += unit * qty
+        line = final_unit * item.quantity
+        subtotal += unit * item.quantity
         total += line
         order.items.append(
             OrderItem(
@@ -85,8 +117,10 @@ def checkout(data: OrderCreate, db: DB, user: CustomerUser):
                 unit_price=unit,
                 discount_percent=product.discount_percent,
                 final_unit_price=final_unit,
-                quantity=qty,
+                quantity=item.quantity,
                 line_total=line,
+                selected_size=item.selected_size,
+                selected_color=item.selected_color,
             )
         )
 

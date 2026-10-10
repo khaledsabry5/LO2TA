@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { ArrowRight, Upload, X, Trash2, Film, Image as ImageIcon } from 'lucide-react'
+import { ArrowRight, Upload, X, Trash2, Film, Image as ImageIcon, Plus } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Spinner, Alert, PageLoader } from '../../components/ui'
 import { money } from '../../lib/format'
@@ -20,6 +20,24 @@ export default function ProductForm() {
     discount_percent: '0',
     is_active: true,
   })
+
+  // Dynamic Shoe Sizes (restricted 30 - 50)
+  const [sizes, setSizes] = useState([
+    { size: 40, stock: 8 },
+    { size: 41, stock: 10 },
+    { size: 42, stock: 12 },
+    { size: 43, stock: 8 },
+  ])
+  const [newSizeInput, setNewSizeInput] = useState('')
+  const [newSizeStock, setNewSizeStock] = useState('5')
+
+  // Dynamic Colors (for shoes and bags)
+  const [colors, setColors] = useState([
+    { name: 'أسود', code: '#111827' },
+    { name: 'بني', code: '#78350f' },
+  ])
+  const [newColorName, setNewColorName] = useState('')
+  const [newColorCode, setNewColorCode] = useState('#111827')
 
   const [existingMedia, setExistingMedia] = useState([])
   const [selectedFiles, setSelectedFiles] = useState([])
@@ -42,6 +60,12 @@ export default function ProductForm() {
             discount_percent: String(p.discount_percent || 0),
             is_active: p.is_active,
           })
+          if (Array.isArray(p.sizes) && p.sizes.length > 0) {
+            setSizes(p.sizes.map((s) => ({ size: s.size, stock: s.stock })))
+          }
+          if (Array.isArray(p.colors) && p.colors.length > 0) {
+            setColors(p.colors.map((c) => ({ name: c.name, code: c.code || '' })))
+          }
           setExistingMedia(p.media || [])
         })
         .catch((err) => setError(err.message))
@@ -52,6 +76,51 @@ export default function ProductForm() {
   const setField = (k) => (e) => {
     const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value
     setForm((prev) => ({ ...prev, [k]: val }))
+  }
+
+  // --- Dynamic Shoe Sizes Handlers ---
+  const handleAddSize = (e) => {
+    e.preventDefault()
+    const sz = parseInt(newSizeInput, 10)
+    const st = parseInt(newSizeStock, 10) || 0
+    if (isNaN(sz) || sz < 30 || sz > 50) {
+      alert('المقاس يجب أن يكون رقماً صحيحاً بين 30 و 50')
+      return
+    }
+    if (sizes.some((s) => s.size === sz)) {
+      alert(`المقاس ${sz} مضاف بالفعل`)
+      return
+    }
+    const updated = [...sizes, { size: sz, stock: st }].sort((a, b) => a.size - b.size)
+    setSizes(updated)
+    setNewSizeInput('')
+    setNewSizeStock('5')
+  }
+
+  const handleUpdateSizeStock = (sizeVal, stockVal) => {
+    const cleanStock = Math.max(0, parseInt(stockVal, 10) || 0)
+    setSizes((prev) => prev.map((s) => (s.size === sizeVal ? { ...s, stock: cleanStock } : s)))
+  }
+
+  const handleRemoveSize = (sizeVal) => {
+    setSizes((prev) => prev.filter((s) => s.size !== sizeVal))
+  }
+
+  // --- Dynamic Colors Handlers ---
+  const handleAddColor = (e) => {
+    e.preventDefault()
+    const name = newColorName.trim()
+    if (!name) return
+    if (colors.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
+      alert(`اللون ${name} مضاف بالفعل`)
+      return
+    }
+    setColors((prev) => [...prev, { name, code: newColorCode || null }])
+    setNewColorName('')
+  }
+
+  const handleRemoveColor = (colorName) => {
+    setColors((prev) => prev.filter((c) => c.name !== colorName))
   }
 
   const handleFileSelect = (e) => {
@@ -79,15 +148,26 @@ export default function ProductForm() {
     setSaving(true)
 
     try {
+      const isShoeCategory = form.category === 'shoes'
+      const isShoeOrBag = form.category === 'shoes' || form.category === 'bags'
+
+      // Calculate stock for shoes from sizes
+      let finalStock = parseInt(form.stock, 10) || 0
+      if (isShoeCategory && sizes.length > 0) {
+        finalStock = sizes.reduce((sum, s) => sum + (parseInt(s.stock, 10) || 0), 0)
+      }
+
       const payload = {
         name: form.name.trim(),
         description: form.description ? form.description.trim() : null,
         gender: form.gender,
         category: form.category,
         price: parseFloat(form.price),
-        stock: parseInt(form.stock, 10),
+        stock: finalStock,
         discount_percent: parseInt(form.discount_percent || 0, 10),
         is_active: Boolean(form.is_active),
+        sizes: isShoeCategory ? sizes.map((s) => ({ size: parseInt(s.size, 10), stock: parseInt(s.stock, 10) || 0 })) : null,
+        colors: isShoeOrBag ? colors.map((c) => ({ name: c.name.trim(), code: c.code || null })) : null,
       }
 
       let productId = id
@@ -98,7 +178,6 @@ export default function ProductForm() {
         productId = created.id
       }
 
-      // Upload files if any selected
       if (selectedFiles.length > 0) {
         await api.uploadMedia(productId, selectedFiles)
       }
@@ -142,7 +221,7 @@ export default function ProductForm() {
 
       {error && <Alert>{error}</Alert>}
 
-      {/* Main Form styled closely after reference mockup */}
+      {/* Main Form */}
       <form onSubmit={handleSubmit} className="card space-y-6 p-6 sm:p-8">
         {/* Name */}
         <div>
@@ -150,14 +229,14 @@ export default function ProductForm() {
           <input
             id="prod-name"
             required
-            placeholder="مثال: حذاء رياضي عصري / حقيبة جلد أنيقة"
+            placeholder="مثال: حذاء كلاسيك جلد / حقيبة يد نسائية"
             value={form.name}
             onChange={setField('name')}
             className="input text-base font-bold"
           />
         </div>
 
-        {/* 1. Gender Selection (الجنس) - Prominent selector matching design */}
+        {/* Gender Selection */}
         <div>
           <label className="label">الجنس</label>
           <div className="grid grid-cols-2 gap-3">
@@ -186,7 +265,7 @@ export default function ProductForm() {
           </div>
         </div>
 
-        {/* 2. Category Selection (نوع الفئة) - 3 categories matching spec */}
+        {/* Category Selection */}
         <div>
           <label className="label">نوع الفئة</label>
           <div className="grid grid-cols-3 gap-3">
@@ -211,9 +290,211 @@ export default function ProductForm() {
           </div>
         </div>
 
-        {/* 3. Media Upload Area (صور الصور / الفيديوهات) - Exact Reference Mockup layout */}
+        {/* DYNAMIC SECTION 1: Shoe Sizes & Inventory (Range 30 to 50) */}
+        {form.category === 'shoes' && (
+          <div className="rounded-2xl border border-black/10 bg-cream-50/70 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-extrabold text-ink">المقاسات المتاحة والمخزون (الأحذية)</h3>
+                <p className="text-xs text-ink-muted">المقاسات مقيدة في النطاق من 30 إلى 50 مع تحديد كمية كل مقاس</p>
+              </div>
+              <span className="rounded-lg bg-cream px-2.5 py-1 text-xs font-bold text-ink">
+                إجمالي المخزون: {sizes.reduce((sum, s) => sum + (parseInt(s.stock, 10) || 0), 0)}
+              </span>
+            </div>
+
+            {/* List of current sizes */}
+            {sizes.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {sizes.map((s) => (
+                  <div
+                    key={s.size}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-black/10 bg-white p-2.5 text-xs shadow-sm"
+                  >
+                    <span className="font-extrabold text-sm text-ink">مقاس {s.size}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-ink-muted text-[0.65rem]">الكمية:</span>
+                      <input
+                        type="number"
+                        min="0"
+                        className="w-14 rounded-lg border border-black/10 bg-cream-100 px-1.5 py-1 text-center font-bold"
+                        value={s.stock}
+                        onChange={(e) => handleUpdateSizeStock(s.size, e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSize(s.size)}
+                        className="text-ink-muted hover:text-sale p-1"
+                        title="حذف المقاس"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-sale font-bold">لم تتم إضافة أي مقاسات بعد. يرجى إضافة مقاس واحد على الأقل.</p>
+            )}
+
+            {/* Add new size row */}
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-black/5">
+              <input
+                type="number"
+                min="30"
+                max="50"
+                placeholder="المقاس (30-50)"
+                className="w-32 rounded-xl border border-black/15 bg-white px-3 py-2 text-xs font-bold"
+                value={newSizeInput}
+                onChange={(e) => setNewSizeInput(e.target.value)}
+              />
+              <input
+                type="number"
+                min="0"
+                placeholder="الكمية"
+                className="w-24 rounded-xl border border-black/15 bg-white px-3 py-2 text-xs font-bold"
+                value={newSizeStock}
+                onChange={(e) => setNewSizeStock(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={handleAddSize}
+                className="btn-dark py-2 px-3 text-xs flex items-center gap-1"
+              >
+                <Plus className="h-3.5 w-3.5" /> إضافة مقاس
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* DYNAMIC SECTION 2: Available Colors (for Shoes and Bags) */}
+        {(form.category === 'shoes' || form.category === 'bags') && (
+          <div className="rounded-2xl border border-black/10 bg-cream-50/70 p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-extrabold text-ink">الألوان المتاحة للمنتج</h3>
+              <p className="text-xs text-ink-muted">أضف خيارات الألوان المتوفرة (مثل: أسود، بني، بيج، كحلي)</p>
+            </div>
+
+            {/* Colors chips */}
+            {colors.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {colors.map((c) => (
+                  <div
+                    key={c.name}
+                    className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs font-bold shadow-sm"
+                  >
+                    <span className="h-3.5 w-3.5 rounded-full border border-black/20 bg-cream" />
+                    <span>{c.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveColor(c.name)}
+                      className="text-ink-muted hover:text-sale"
+                      title="حذف اللون"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-ink-muted">لم يتم تحديد أي ألوان لهذا المنتج.</p>
+            )}
+
+            {/* Add color row */}
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-black/5">
+              <input
+                type="text"
+                placeholder="اسم اللون (مثال: كحلي / بني)"
+                className="rounded-xl border border-black/15 bg-white px-3 py-2 text-xs font-bold flex-1"
+                value={newColorName}
+                onChange={(e) => setNewColorName(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={handleAddColor}
+                className="btn-dark py-2 px-3 text-xs flex items-center gap-1"
+              >
+                <Plus className="h-3.5 w-3.5" /> إضافة لون
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Pricing & Stock */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="label" htmlFor="prod-price">السعر الرسمي (ج.م)</label>
+            <input
+              id="prod-price"
+              type="number"
+              step="0.01"
+              min="0"
+              required
+              placeholder="مثال: 450"
+              value={form.price}
+              onChange={setField('price')}
+              className="input text-base font-bold"
+            />
+          </div>
+
+          <div>
+            <label className="label" htmlFor="prod-stock">
+              {form.category === 'shoes' ? 'إجمالي المخزون (محسوب تلقائياً)' : 'الكمية المتوفرة بالمخزون'}
+            </label>
+            <input
+              id="prod-stock"
+              type="number"
+              min="0"
+              required
+              readOnly={form.category === 'shoes' && sizes.length > 0}
+              placeholder="مثال: 25"
+              value={
+                form.category === 'shoes' && sizes.length > 0
+                  ? sizes.reduce((sum, s) => sum + (parseInt(s.stock, 10) || 0), 0)
+                  : form.stock
+              }
+              onChange={setField('stock')}
+              className="input text-base font-bold"
+            />
+          </div>
+        </div>
+
+        {/* Discount Box with #ef233c badge */}
+        <div className="rounded-2xl border border-black/10 bg-cream-50/50 p-4">
+          <label className="label" htmlFor="prod-discount">إضافة خصم</label>
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-20 shrink-0 items-center justify-center rounded-xl bg-sale font-mono text-xs font-bold text-white shadow-sm">
+              #ef233c
+            </div>
+
+            <div className="relative flex-1">
+              <input
+                id="prod-discount"
+                type="number"
+                min="0"
+                max="90"
+                placeholder="إضافة خصم (%)"
+                value={form.discount_percent}
+                onChange={setField('discount_percent')}
+                className="input pe-9 font-bold text-base"
+              />
+              <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 font-bold text-ink-muted">
+                %
+              </span>
+            </div>
+          </div>
+
+          {parseInt(form.discount_percent, 10) > 0 && parseFloat(form.price) > 0 && (
+            <div className="mt-3 flex items-center justify-between rounded-xl bg-white p-3 text-sm ring-1 ring-black/5">
+              <span className="text-ink-muted">السعر بعد الخصم:</span>
+              <span className="font-extrabold text-sale">{finalPricePreview()}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Media Upload Area */}
         <div>
-          <label className="label">صور الصور / الفيديوهات</label>
+          <label className="label">صور / فيديوهات المنتج</label>
           <label
             htmlFor="media-upload"
             className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-black/15 bg-cream-50/70 p-6 text-center transition hover:border-ink hover:bg-cream-100"
@@ -221,7 +502,7 @@ export default function ProductForm() {
             <div className="grid h-12 w-12 place-items-center rounded-full bg-cream text-ink">
               <Upload className="h-6 w-6" />
             </div>
-            <span className="text-sm font-extrabold text-ink">أو الفيديوهات</span>
+            <span className="text-sm font-extrabold text-ink">رفع صور أو فيديوهات</span>
             <span className="text-xs text-ink-muted">
               اضغط لاختيار صور (JPG, PNG, WEBP) أو فيديوهات (MP4) من جهازك
             </span>
@@ -235,7 +516,6 @@ export default function ProductForm() {
             />
           </label>
 
-          {/* Pending files to upload */}
           {selectedFiles.length > 0 && (
             <div className="mt-3 space-y-2">
               <p className="text-xs font-bold text-ink">الملفات المحددة للرفع ({selectedFiles.length}):</p>
@@ -266,7 +546,6 @@ export default function ProductForm() {
             </div>
           )}
 
-          {/* Existing uploaded media if edit mode */}
           {existingMedia.length > 0 && (
             <div className="mt-4 space-y-2">
               <p className="text-xs font-bold text-ink">الوسائط المحفوظة حالياً:</p>
@@ -296,79 +575,13 @@ export default function ProductForm() {
           )}
         </div>
 
-        {/* 4. Pricing & Discount (#ef233c badge matching reference layout) */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="label" htmlFor="prod-price">السعر الرسمي (ر.س)</label>
-            <input
-              id="prod-price"
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              placeholder="مثال: 450"
-              value={form.price}
-              onChange={setField('price')}
-              className="input text-base font-bold"
-            />
-          </div>
-
-          <div>
-            <label className="label" htmlFor="prod-stock">الكمية المتوفرة بالمخزون</label>
-            <input
-              id="prod-stock"
-              type="number"
-              min="0"
-              required
-              placeholder="مثال: 25"
-              value={form.stock}
-              onChange={setField('stock')}
-              className="input text-base font-bold"
-            />
-          </div>
-        </div>
-
-        {/* Discount Box with #ef233c badge (Directly from reference screen!) */}
-        <div className="rounded-2xl border border-black/10 bg-cream-50/50 p-4">
-          <label className="label" htmlFor="prod-discount">إضافة خصم</label>
-          <div className="flex items-center gap-3">
-            {/* The distinct #ef233c rectangle from reference design */}
-            <div className="flex h-12 w-20 shrink-0 items-center justify-center rounded-xl bg-sale font-mono text-xs font-bold text-white shadow-sm">
-              #ef233c
-            </div>
-
-            <div className="relative flex-1">
-              <input
-                id="prod-discount"
-                type="number"
-                min="0"
-                max="90"
-                placeholder="إضافة خصم (%)"
-                value={form.discount_percent}
-                onChange={setField('discount_percent')}
-                className="input pe-9 font-bold text-base"
-              />
-              <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 font-bold text-ink-muted">
-                %
-              </span>
-            </div>
-          </div>
-
-          {parseInt(form.discount_percent, 10) > 0 && parseFloat(form.price) > 0 && (
-            <div className="mt-3 flex items-center justify-between rounded-xl bg-white p-3 text-sm ring-1 ring-black/5">
-              <span className="text-ink-muted">السعر بعد الخصم:</span>
-              <span className="font-extrabold text-sale">{finalPricePreview()}</span>
-            </div>
-          )}
-        </div>
-
         {/* Description */}
         <div>
           <label className="label" htmlFor="prod-desc">الوصف والمواصفات</label>
           <textarea
             id="prod-desc"
             rows={3}
-            placeholder="وصف تفصيلي للخامة والمقاسات والمواصفات..."
+            placeholder="وصف تفصيلي للخامة والمواصفات..."
             value={form.description}
             onChange={setField('description')}
             className="input"

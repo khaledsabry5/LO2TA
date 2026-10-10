@@ -3,7 +3,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
 from ..deps import DB, StaffUser
-from ..models import Category, Gender, Product, ProductMedia
+from ..models import Category, Gender, Product, ProductColor, ProductMedia, ProductSize
 from ..schemas import (
     DiscountIn,
     MediaOut,
@@ -22,7 +22,15 @@ LATEST_LIMIT = 20
 
 
 def _get_product(db, product_id: int) -> Product:
-    product = db.scalar(select(Product).where(Product.id == product_id).options(selectinload(Product.media)))
+    product = db.scalar(
+        select(Product)
+        .where(Product.id == product_id)
+        .options(
+            selectinload(Product.media),
+            selectinload(Product.sizes),
+            selectinload(Product.colors),
+        )
+    )
     if not product:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "المنتج غير موجود")
     return product
@@ -55,7 +63,11 @@ def list_products(
     stmt = _apply_filters(select(Product).where(Product.is_active.is_(True)), category, gender, q, discounted)
     total = db.scalar(select(func.count()).select_from(stmt.subquery()))
     items = db.scalars(
-        stmt.options(selectinload(Product.media))
+        stmt.options(
+            selectinload(Product.media),
+            selectinload(Product.sizes),
+            selectinload(Product.colors),
+        )
         .order_by(Product.created_at.desc(), Product.id.desc())
         .limit(limit)
         .offset(offset)
@@ -69,7 +81,11 @@ def latest_products(db: DB):
     return db.scalars(
         select(Product)
         .where(Product.is_active.is_(True))
-        .options(selectinload(Product.media))
+        .options(
+            selectinload(Product.media),
+            selectinload(Product.sizes),
+            selectinload(Product.colors),
+        )
         .order_by(Product.created_at.desc(), Product.id.desc())
         .limit(LATEST_LIMIT)
     ).all()
@@ -93,7 +109,14 @@ def manage_list(
         stmt = stmt.where(Product.stock <= low_stock)
     total = db.scalar(select(func.count()).select_from(stmt.subquery()))
     items = db.scalars(
-        stmt.options(selectinload(Product.media)).order_by(Product.created_at.desc()).limit(limit).offset(offset)
+        stmt.options(
+            selectinload(Product.media),
+            selectinload(Product.sizes),
+            selectinload(Product.colors),
+        )
+        .order_by(Product.created_at.desc())
+        .limit(limit)
+        .offset(offset)
     ).all()
     return ProductAdminPage(total=total or 0, items=items)
 
@@ -105,8 +128,26 @@ def manage_get(product_id: int, db: DB, _: StaffUser):
 
 @router.post("", response_model=ProductAdminOut, status_code=status.HTTP_201_CREATED)
 def create_product(data: ProductCreate, db: DB, user: StaffUser):
-    product = Product(**data.model_dump(), created_by_id=user.id)
+    raw_data = data.model_dump()
+    sizes_data = raw_data.pop("sizes", None)
+    colors_data = raw_data.pop("colors", None)
+
+    # For shoes with specific sizes, stock is the sum of sizes
+    if data.category == Category.SHOES and sizes_data:
+        raw_data["stock"] = sum(s["stock"] for s in sizes_data)
+
+    product = Product(**raw_data, created_by_id=user.id)
     db.add(product)
+    db.flush()
+
+    if data.category == Category.SHOES and sizes_data:
+        for s in sizes_data:
+            product.sizes.append(ProductSize(size=s["size"], stock=s["stock"]))
+
+    if data.category in (Category.SHOES, Category.BAGS) and colors_data:
+        for c in colors_data:
+            product.colors.append(ProductColor(name=c["name"].strip(), code=c.get("code")))
+
     db.commit()
     return _get_product(db, product.id)
 
@@ -114,8 +155,26 @@ def create_product(data: ProductCreate, db: DB, user: StaffUser):
 @router.patch("/{product_id}", response_model=ProductAdminOut)
 def update_product(product_id: int, data: ProductUpdate, db: DB, _: StaffUser):
     product = _get_product(db, product_id)
-    for field, value in data.model_dump(exclude_unset=True).items():
+    raw = data.model_dump(exclude_unset=True)
+    sizes_data = raw.pop("sizes", None)
+    colors_data = raw.pop("colors", None)
+
+    for field, value in raw.items():
         setattr(product, field, value)
+
+    if sizes_data is not None:
+        product.sizes.clear()
+        if product.category == Category.SHOES:
+            for s in sizes_data:
+                product.sizes.append(ProductSize(size=s["size"], stock=s["stock"]))
+            product.stock = sum(s["stock"] for s in sizes_data)
+
+    if colors_data is not None:
+        product.colors.clear()
+        if product.category in (Category.SHOES, Category.BAGS):
+            for c in colors_data:
+                product.colors.append(ProductColor(name=c["name"].strip(), code=c.get("code")))
+
     db.commit()
     return _get_product(db, product_id)
 

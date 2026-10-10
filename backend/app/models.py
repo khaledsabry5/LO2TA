@@ -76,7 +76,7 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    hashed_password: Mapped[str] = mapped_column(String(255))
+    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
     full_name: Mapped[str] = mapped_column(String(150))
     phone: Mapped[str | None] = mapped_column(String(30))
     role: Mapped[UserRole] = mapped_column(pg_enum(UserRole, "user_role"), default=UserRole.CUSTOMER, index=True)
@@ -93,7 +93,7 @@ class User(Base):
 
 
 # --------------------------------------------------------------------------- #
-# Products
+# Products & Variants
 # --------------------------------------------------------------------------- #
 class Product(Base):
     __tablename__ = "products"
@@ -126,6 +126,16 @@ class Product(Base):
         cascade="all, delete-orphan",
         order_by="ProductMedia.sort_order",
     )
+    sizes: Mapped[list[ProductSize]] = relationship(
+        back_populates="product",
+        cascade="all, delete-orphan",
+        order_by="ProductSize.size",
+    )
+    colors: Mapped[list[ProductColor]] = relationship(
+        back_populates="product",
+        cascade="all, delete-orphan",
+        order_by="ProductColor.id",
+    )
 
     @property
     def has_discount(self) -> bool:
@@ -140,7 +150,37 @@ class Product(Base):
 
     @property
     def in_stock(self) -> bool:
+        if self.category == Category.SHOES and self.sizes:
+            return any(s.stock > 0 for s in self.sizes)
         return self.stock > 0
+
+
+class ProductSize(Base):
+    """Specific inventory tracking per shoe size (restricted to range 30-50)."""
+    __tablename__ = "product_sizes"
+    __table_args__ = (
+        CheckConstraint("size >= 30 AND size <= 50", name="ck_product_size_range"),
+        CheckConstraint("stock >= 0", name="ck_product_size_stock_positive"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), index=True)
+    size: Mapped[int] = mapped_column(Integer)
+    stock: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+    product: Mapped[Product] = relationship(back_populates="sizes")
+
+
+class ProductColor(Base):
+    """Available colors (names or hex codes) for shoes and bags."""
+    __tablename__ = "product_colors"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(50))
+    code: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
+    product: Mapped[Product] = relationship(back_populates="colors")
 
 
 class ProductMedia(Base):
@@ -203,6 +243,8 @@ class OrderItem(Base):
     final_unit_price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     quantity: Mapped[int] = mapped_column(Integer)
     line_total: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    selected_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    selected_color: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     order: Mapped[Order] = relationship(back_populates="items")
     product: Mapped[Product | None] = relationship()
