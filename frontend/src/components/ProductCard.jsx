@@ -20,10 +20,7 @@ export default function ProductCard({ product, index = 0 }) {
   }
 
   return (
-    <article
-      className="group relative flex flex-col animate-fade-up"
-      style={{ animationDelay: `${Math.min(index, 12) * 40}ms` }}
-    >
+    <article className="group relative flex flex-col animate-fade-up">
       <Link
         to={`/product/${product.id}`}
         id={`product-card-${product.id}`}

@@ -39,20 +39,45 @@ export default function Shop() {
     setParams(next)
   }
 
+  const [error, setError] = useState('')
+
   useEffect(() => {
+    let mounted = true
     setLoading(true)
+    setError('')
     setOffset(0)
-    api
-      .products({ gender, category, q, discounted: discounted || undefined, limit: PAGE, offset: 0 })
-      .then(setData)
-      .finally(() => setLoading(false))
+
+    async function fetchProducts() {
+      try {
+        const res = await api.products({ gender, category, q, discounted: discounted || undefined, limit: PAGE, offset: 0 })
+        if (mounted) {
+          setData(res && Array.isArray(res.items) ? res : { total: 0, items: [] })
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(err?.message || 'تعذر تحميل المنتجات')
+          setData({ total: 0, items: [] })
+        }
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+
+    fetchProducts()
+    return () => { mounted = false }
   }, [gender, category, q, discounted])
 
   const loadMore = async () => {
     const nextOffset = offset + PAGE
-    const res = await api.products({ gender, category, q, discounted: discounted || undefined, limit: PAGE, offset: nextOffset })
-    setData((d) => ({ total: res.total, items: [...d.items, ...res.items] }))
-    setOffset(nextOffset)
+    try {
+      const res = await api.products({ gender, category, q, discounted: discounted || undefined, limit: PAGE, offset: nextOffset })
+      if (res && Array.isArray(res.items)) {
+        setData((d) => ({ total: res.total, items: [...(d.items || []), ...res.items] }))
+        setOffset(nextOffset)
+      }
+    } catch (err) {
+      console.error('Failed to load more products:', err)
+    }
   }
 
   const title = q

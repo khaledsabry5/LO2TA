@@ -20,9 +20,10 @@ export default function OrdersAdmin() {
         status: statusFilter || undefined,
         limit: 100,
       })
-      setOrders(data)
+      setOrders(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error(err)
+      setOrders([])
     } finally {
       setLoading(false)
     }

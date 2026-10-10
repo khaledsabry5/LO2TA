@@ -15,9 +15,10 @@ export default function Customers() {
     setLoading(true)
     try {
       const data = await api.customers({ q: search || undefined, limit: 100 })
-      setCustomers(data)
+      setCustomers(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error(err)
+      setCustomers([])
     } finally {
       setLoading(false)
     }

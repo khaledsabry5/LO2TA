@@ -21,7 +21,6 @@ export default function CategoriesSection() {
             id={`category-${c.key}`}
             to={`/shop?category=${c.key}`}
             className="group flex flex-col overflow-hidden rounded-2xl bg-cream ring-1 ring-cream-300/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift animate-fade-up sm:rounded-3xl"
-            style={{ animationDelay: `${i * 80}ms` }}
           >
             <div className="aspect-square overflow-hidden">
               <img

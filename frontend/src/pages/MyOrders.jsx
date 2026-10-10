@@ -6,17 +6,38 @@ import { api } from '../lib/api'
 import { ORDER_STATUS, formatDate, money } from '../lib/format'
 
 export default function MyOrders() {
-  const [orders, setOrders] = useState(null)
-  const load = () => api.myOrders().then(setOrders)
+  const [orders, setOrders] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const load = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const data = await api.myOrders()
+      setOrders(Array.isArray(data) ? data : [])
+    } catch (err) {
+      setError(err?.message || 'تعذر تحميل قائمة الطلبات')
+      setOrders([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => { load() }, [])
 
   const cancel = async (id) => {
     if (!confirm('هل تريد إلغاء هذا الطلب؟')) return
-    await api.cancelMyOrder(id)
-    load()
+    try {
+      await api.cancelMyOrder(id)
+      load()
+    } catch (err) {
+      alert(err?.message || 'فشل إلغاء الطلب')
+    }
   }
 
-  if (!orders) return <PageLoader />
+  if (loading) return <PageLoader />
+  if (error) return <div className="container-x py-10"><EmptyState icon={Package} title="خطأ" text={error} /></div>
   return (
     <div className="container-x py-6 sm:py-10">
       <h1 className="text-2xl font-extrabold sm:text-3xl">طلباتي</h1>

@@ -43,14 +43,19 @@ export async function request(path, { method = 'GET', body, form, files, params 
     payload = JSON.stringify(body)
   }
 
-  const res = await fetch(url, { method, headers, body: payload })
-  if (res.status === 204) return null
-  const data = await res.json().catch(() => null)
-  if (!res.ok) {
-    if (res.status === 401) tokenStore.clear()
-    throw new ApiError(extractMessage(data, res.status), res.status)
+  try {
+    const res = await fetch(url, { method, headers, body: payload })
+    if (res.status === 204) return null
+    const data = await res.json().catch(() => null)
+    if (!res.ok) {
+      if (res.status === 401) tokenStore.clear()
+      throw new ApiError(extractMessage(data, res.status), res.status)
+    }
+    return data
+  } catch (err) {
+    if (err instanceof ApiError) throw err
+    throw new ApiError('تعذر الاتصال بالخادم (يرجى التأكد من تشغيل خادم FastAPI).', 0)
   }
-  return data
 }
 
 export const api = {

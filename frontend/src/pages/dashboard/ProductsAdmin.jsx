@@ -26,10 +26,12 @@ export default function ProductsAdmin() {
         gender: gender || undefined,
         limit: 100,
       })
-      setProducts(data.items)
-      setTotal(data.total)
+      setProducts(Array.isArray(data?.items) ? data.items : [])
+      setTotal(data?.total || 0)
     } catch (err) {
       console.error(err)
+      setProducts([])
+      setTotal(0)
     } finally {
       setLoading(false)
     }
@@ -276,10 +278,7 @@ export default function ProductsAdmin() {
               <div>
                 <label className="label">نسبة الخصم (%)</label>
                 <div className="flex items-center gap-2">
-                  <div
-                    className="grid h-11 w-12 shrink-0 place-items-center rounded-xl text-white font-extrabold text-xs"
-                    style={{ backgroundColor: '#ef233c' }}
-                  >
+                  <div className="grid h-11 w-12 shrink-0 place-items-center rounded-xl bg-sale text-white font-extrabold text-xs">
                     %{discountVal || 0}
                   </div>
                   <input

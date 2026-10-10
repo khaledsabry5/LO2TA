@@ -17,7 +17,6 @@ export default function GenderSections() {
             to={`/shop?gender=${s.key}`}
             id={`gender-${s.key}`}
             className="group relative block aspect-[4/5] overflow-hidden rounded-3xl bg-cream animate-fade-up sm:aspect-[16/11] lg:aspect-[16/9]"
-            style={{ animationDelay: `${i * 90}ms` }}
           >
             <img
               src={s.img}

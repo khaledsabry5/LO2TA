@@ -18,18 +18,33 @@ export default function ProductDetail() {
   const [added, setAdded] = useState(false)
 
   useEffect(() => {
+    let mounted = true
     setProduct(null)
+    setError('')
     setActive(0)
-    api.product(id).then((p) => {
-      setProduct(p)
-      document.title = `${p.name} | لقطة للإكسسوارات`
-    }).catch((e) => setError(e.message))
+
+    async function fetchProduct() {
+      try {
+        const p = await api.product(id)
+        if (mounted && p) {
+          setProduct(p)
+          document.title = `${p.name} | لقطة للإكسسوارات`
+        }
+      } catch (e) {
+        if (mounted) {
+          setError(e?.message || 'تعذر تحميل بيانات المنتج')
+        }
+      }
+    }
+
+    fetchProduct()
+    return () => { mounted = false }
   }, [id])
 
   if (error) return <div className="container-x py-10"><EmptyState icon={ShoppingBag} title="المنتج غير موجود" text={error} /></div>
   if (!product) return <PageLoader />
 
-  const media = product.media.length ? product.media : [{ id: 0, url: '', media_type: 'image' }]
+  const media = Array.isArray(product?.media) && product.media.length ? product.media : [{ id: 0, url: '', media_type: 'image' }]
   const current = media[active]
 
   const handleAdd = (buyNow) => {

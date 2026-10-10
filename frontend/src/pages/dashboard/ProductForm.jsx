@@ -333,10 +333,7 @@ export default function ProductForm() {
           <label className="label" htmlFor="prod-discount">إضافة خصم</label>
           <div className="flex items-center gap-3">
             {/* The distinct #ef233c rectangle from reference design */}
-            <div
-              className="flex h-12 w-20 shrink-0 items-center justify-center rounded-xl font-mono text-xs font-bold text-white shadow-sm"
-              style={{ backgroundColor: '#ef233c' }}
-            >
+            <div className="flex h-12 w-20 shrink-0 items-center justify-center rounded-xl bg-sale font-mono text-xs font-bold text-white shadow-sm">
               #ef233c
             </div>
 

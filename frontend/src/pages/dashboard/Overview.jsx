@@ -23,14 +23,31 @@ const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ماي�
 
 export default function Overview() {
   const [d, setD] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  useEffect(() => { api.analytics().then(setD).catch((e) => setError(e.message)) }, [])
 
-  if (error) return <p className="text-sale">{error}</p>
-  if (!d) return <PageLoader />
+  useEffect(() => {
+    let mounted = true
+    async function fetchAnalytics() {
+      try {
+        const data = await api.analytics()
+        if (mounted) setD(data)
+      } catch (e) {
+        if (mounted) setError(e?.message || 'تعذر تحميل بيانات لوحة التحكم')
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+    fetchAnalytics()
+    return () => { mounted = false }
+  }, [])
 
-  const monthly = d.revenue_by_month.map((m) => ({ ...m, name: MONTHS[Number(m.month.slice(5)) - 1] }))
-  const cats = d.sales_by_category.map((c) => ({ ...c, name: CATEGORY_LABELS[c.category] }))
+  if (loading) return <PageLoader />
+  if (error) return <div className="card p-6 text-sale font-bold">{error}</div>
+  if (!d) return null
+
+  const monthly = (d.revenue_by_month || []).map((m) => ({ ...m, name: MONTHS[Number(m.month.slice(5)) - 1] }))
+  const cats = (d.sales_by_category || []).map((c) => ({ ...c, name: CATEGORY_LABELS[c.category] }))
 
   return (
     <div className="space-y-5">

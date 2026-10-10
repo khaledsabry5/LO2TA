@@ -25,9 +25,10 @@ export default function Staff() {
     setLoading(true)
     try {
       const data = await api.staff()
-      setStaffList(data)
+      setStaffList(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error(err)
+      setStaffList([])
     } finally {
       setLoading(false)
     }
