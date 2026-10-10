@@ -45,7 +45,13 @@
 
   .chip { @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold; }
 
-  .product-card-details-btn { @apply inline-flex items-center justify-center rounded-xl bg-cream px-3 py-1.5 text-xs font-extrabold text-ink transition-all duration-200 hover:bg-ink hover:text-white; }
+  /* Product Card standalone layout & spacing classes */
+  .product-card { @apply relative flex flex-col rounded-2xl p-1.5 transition-all duration-300 animate-fade-up hover:bg-cream-50/50 hover:shadow-card; }
+  .product-card-media { @apply relative block aspect-[4/5] overflow-hidden rounded-2xl bg-cream-100; }
+  .product-card-info { @apply mt-3 flex flex-1 flex-col gap-1.5 px-1; }
+  .product-card-meta { @apply text-[0.7rem] font-medium text-ink-muted; }
+  .product-card-title { @apply line-clamp-1 text-sm font-bold text-ink transition-colors group-hover:text-azure-dark sm:text-[0.95rem]; }
+  .product-card-pricing { @apply mt-auto pt-2; }
 }
 
 @layer utilities {
