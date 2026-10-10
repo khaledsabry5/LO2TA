@@ -15,14 +15,15 @@ from .routers import auth, manager, orders, products
 async def lifespan(_: FastAPI):
     try:
         from .database import Base, SessionLocal, engine
-        from .seed import ensure_first_manager, seed_products
+        from .seed import ensure_first_admin, ensure_first_manager, seed_products
 
         # a) Create all database tables using Base.metadata.create_all
         Base.metadata.create_all(bind=engine)
 
-        # b) Inject default Manager and c) Populate demo products
+        # b) Inject default Manager & Admin and c) Populate demo products
         with SessionLocal() as db:
             manager = ensure_first_manager(db)
+            ensure_first_admin(db)
             seed_products(db, manager)
         print("[OK] Database tables created and demo data seeded successfully on startup")
     except Exception as e:

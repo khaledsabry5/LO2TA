@@ -57,6 +57,22 @@ def ensure_first_manager(db) -> User:
     return manager
 
 
+def ensure_first_admin(db) -> User:
+    admin = db.scalar(select(User).where(User.role == UserRole.ADMIN))
+    if admin:
+        return admin
+    admin = User(
+        email="admin@lo2ta.com",
+        hashed_password=hash_password("ChangeMe123!"),
+        full_name="مشرف المتجر",
+        role=UserRole.ADMIN,
+    )
+    db.add(admin)
+    db.commit()
+    print(f"[OK] Created first admin: {admin.email}")
+    return admin
+
+
 def seed_products(db, manager: User) -> None:
     if db.scalar(select(func.count(Product.id))):
         print("[INFO] Products already exist - skipping demo data")
@@ -82,6 +98,7 @@ def main() -> None:
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         manager = ensure_first_manager(db)
+        ensure_first_admin(db)
         if "--no-demo" not in sys.argv:
             seed_products(db, manager)
 
