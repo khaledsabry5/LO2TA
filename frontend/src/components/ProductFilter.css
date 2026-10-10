@@ -1,0 +1,459 @@
+/* ==========================================================================
+   ProductFilter Component Styles (RTL Arabic Design for Lo2ta Store)
+   Strictly separated CSS - No inline styles
+   ========================================================================== */
+
+.filter-card {
+  background-color: #ffffff;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
+  position: sticky;
+  top: 5.5rem;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+  direction: rtl;
+  text-align: right;
+}
+
+.filter-card:hover {
+  border-color: rgba(209, 213, 219, 1);
+  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.07);
+}
+
+/* Header & Title */
+.filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.filter-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.filter-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #111827;
+}
+
+.filter-title {
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: #111827;
+  margin: 0;
+}
+
+.filter-reset-btn {
+  background: transparent;
+  border: none;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.filter-reset-btn:hover {
+  color: #ef4444;
+  background-color: #fef2f2;
+}
+
+/* Active Tags Bar */
+.filter-active-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px dashed #e5e7eb;
+}
+
+.filter-active-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-active-tag:hover {
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.filter-tag-close {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+/* Filter Sections */
+.filter-section {
+  margin-bottom: 1.5rem;
+}
+
+.filter-section:last-of-type {
+  margin-bottom: 1.25rem;
+}
+
+.filter-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: #374151;
+  margin-bottom: 0.75rem;
+}
+
+.filter-badge-hint {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #9ca3af;
+}
+
+/* Price Range Inputs */
+.filter-price-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.625rem;
+}
+
+.filter-price-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.filter-price-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #6b7280;
+}
+
+.filter-price-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.filter-price-input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+  padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #111827;
+  outline: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  direction: ltr;
+  text-align: right;
+}
+
+.filter-price-input:focus {
+  background-color: #ffffff;
+  border-color: #111827;
+  box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.1);
+}
+
+.filter-currency-badge {
+  position: absolute;
+  left: 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+/* Size Grid Buttons */
+.filter-size-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.filter-size-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.filter-size-btn:hover {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+  color: #111827;
+  transform: translateY(-1px);
+}
+
+.filter-size-btn.active {
+  background-color: #111827;
+  border-color: #111827;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.25);
+  transform: scale(1.02);
+}
+
+/* Color Swatches Grid */
+.filter-color-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filter-color-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #374151;
+}
+
+.filter-color-btn:hover {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+.filter-color-btn.active {
+  background-color: #111827;
+  border-color: #111827;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.2);
+}
+
+.filter-color-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.filter-color-circle {
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Preset color swatch classes to avoid inline styles */
+.swatch-black {
+  background-color: #111827;
+}
+
+.swatch-brown {
+  background-color: #78350f;
+}
+
+.swatch-beige {
+  background-color: #fef3c7;
+}
+
+.swatch-white {
+  background-color: #ffffff;
+}
+
+.swatch-grey {
+  background-color: #6b7280;
+}
+
+.swatch-navy {
+  background-color: #1e3a8a;
+}
+
+.swatch-red {
+  background-color: #b91c1c;
+}
+
+.swatch-default {
+  background-color: #374151;
+}
+
+.filter-check-icon {
+  width: 1rem;
+  height: 1rem;
+  color: #ffffff;
+}
+
+/* Actions Button */
+.filter-action-box {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.filter-apply-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: #111827;
+  color: #ffffff;
+  padding: 0.8125rem 1rem;
+  border-radius: 0.875rem;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 14px rgba(17, 24, 39, 0.18);
+}
+
+.filter-apply-btn:hover {
+  background-color: #000000;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(17, 24, 39, 0.28);
+}
+
+.filter-apply-btn:active {
+  transform: translateY(0);
+}
+
+/* Mobile Trigger Button & Drawer */
+.mobile-filter-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  padding: 0.625rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: #111827;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.mobile-filter-trigger:hover {
+  background-color: #f9fafb;
+  border-color: #111827;
+}
+
+.mobile-filter-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.25rem;
+  border-radius: 9999px;
+  background-color: #111827;
+  color: #ffffff;
+  font-size: 0.6875rem;
+  font-weight: 800;
+}
+
+/* Mobile Drawer Overlay */
+.filter-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 50;
+  display: flex;
+  justify-content: flex-end;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.filter-drawer-panel {
+  width: 100%;
+  max-width: 22rem;
+  height: 100%;
+  background-color: #ffffff;
+  padding: 1.5rem;
+  overflow-y: auto;
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.15);
+  direction: rtl;
+  display: flex;
+  flex-direction: column;
+  animation: slideInRtl 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.filter-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.filter-drawer-close-btn {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
+  border: none;
+  background-color: #f3f4f6;
+  color: #374151;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.filter-drawer-close-btn:hover {
+  background-color: #e5e7eb;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRtl {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* Layout Grid for Shop page with Sidebar */
+.shop-filter-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+@media (min-width: 1024px) {
+  .shop-filter-layout {
+    grid-template-columns: 17rem 1fr;
+    gap: 2rem;
+  }
+}

@@ -59,7 +59,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (auth.router, products.router, orders.router, manager.router):
+for r in (auth.router, products.router, products.categories_router, orders.router, manager.router):
     app.include_router(r, prefix="/api")
 
 upload_dir = Path(settings.UPLOAD_DIR)

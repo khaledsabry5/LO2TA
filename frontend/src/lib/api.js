@@ -68,6 +68,8 @@ export const api = {
   // catalog
   latest: () => request('/products/latest'),
   products: (params) => request('/products', { params }),
+  categoryProducts: (category, params) => request(`/categories/${category}/products`, { params }),
+  filterOptions: (params) => request('/products/filter-options', { params }),
   product: (id) => request(`/products/${id}`),
 
   // customer orders

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
@@ -17,6 +19,7 @@ from ..schemas import (
 from ..storage import delete_media_file, delete_product_folder, save_upload
 
 router = APIRouter(prefix="/products", tags=["products"])
+categories_router = APIRouter(prefix="/categories", tags=["categories"])
 
 LATEST_LIMIT = 20
 
@@ -36,7 +39,17 @@ def _get_product(db, product_id: int) -> Product:
     return product
 
 
-def _apply_filters(stmt, category, gender, q, discounted):
+def _apply_filters(
+    stmt,
+    category: Category | None = None,
+    gender: Gender | None = None,
+    q: str | None = None,
+    discounted: bool = False,
+    size: int | None = None,
+    color: str | None = None,
+    min_price: Decimal | None = None,
+    max_price: Decimal | None = None,
+):
     if category:
         stmt = stmt.where(Product.category == category)
     if gender:
@@ -46,21 +59,68 @@ def _apply_filters(stmt, category, gender, q, discounted):
     if q:
         like = f"%{q.strip()}%"
         stmt = stmt.where(or_(Product.name.ilike(like), Product.description.ilike(like)))
+
+    # Price range filter on final price (taking discount into account)
+    effective_price = Product.price * (1.0 - func.coalesce(Product.discount_percent, 0) / 100.0)
+    if min_price is not None:
+        stmt = stmt.where(effective_price >= float(min_price))
+    if max_price is not None:
+        stmt = stmt.where(effective_price <= float(max_price))
+
+    needs_distinct = False
+    # Variant inventory filter: size must match and have stock > 0
+    if size is not None:
+        stmt = stmt.join(Product.sizes).where(ProductSize.size == size, ProductSize.stock > 0)
+        needs_distinct = True
+
+    # Variant inventory filter: color must match and product must have stock > 0
+    if color:
+        clean_color = color.strip()
+        stmt = stmt.join(Product.colors).where(
+            or_(
+                func.lower(ProductColor.name) == clean_color.lower(),
+                ProductColor.code.ilike(clean_color),
+            )
+        )
+        stmt = stmt.where(Product.stock > 0)
+        needs_distinct = True
+
+    if needs_distinct:
+        stmt = stmt.distinct()
+
     return stmt
 
 
 # ================================ PUBLIC ==================================== #
 @router.get("", response_model=ProductPage)
+@router.get("/category/{category_path}", response_model=ProductPage)
+@router.get("/categories/{category_path}/products", response_model=ProductPage)
 def list_products(
     db: DB,
     category: Category | None = None,
+    category_path: Category | None = None,
     gender: Gender | None = None,
     q: str | None = Query(default=None, max_length=100),
     discounted: bool = False,
+    size: int | None = Query(default=None, ge=30, le=50, description="Shoe size (30-50)"),
+    color: str | None = Query(default=None, max_length=50, description="Product color"),
+    min_price: Decimal | None = Query(default=None, ge=0, description="Minimum price"),
+    max_price: Decimal | None = Query(default=None, ge=0, description="Maximum price"),
     limit: int = Query(24, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ):
-    stmt = _apply_filters(select(Product).where(Product.is_active.is_(True)), category, gender, q, discounted)
+    cat = category or category_path
+    stmt = _apply_filters(
+        select(Product).where(Product.is_active.is_(True)),
+        category=cat,
+        gender=gender,
+        q=q,
+        discounted=discounted,
+        size=size,
+        color=color,
+        min_price=min_price,
+        max_price=max_price,
+    )
     total = db.scalar(select(func.count()).select_from(stmt.subquery()))
     items = db.scalars(
         stmt.options(
@@ -73,6 +133,87 @@ def list_products(
         .offset(offset)
     ).all()
     return ProductPage(total=total or 0, items=items)
+
+
+@categories_router.get("/{category_id}/products", response_model=ProductPage)
+def get_category_products(
+    category_id: Category,
+    db: DB,
+    gender: Gender | None = None,
+    q: str | None = Query(default=None, max_length=100),
+    discounted: bool = False,
+    size: int | None = Query(default=None, ge=30, le=50, description="Shoe size (30-50)"),
+    color: str | None = Query(default=None, max_length=50, description="Product color"),
+    min_price: Decimal | None = Query(default=None, ge=0, description="Minimum price"),
+    max_price: Decimal | None = Query(default=None, ge=0, description="Maximum price"),
+    limit: int = Query(24, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    """Direct category products endpoint (e.g. GET /api/categories/shoes/products)."""
+    return list_products(
+        db=db,
+        category=category_id,
+        gender=gender,
+        q=q,
+        discounted=discounted,
+        size=size,
+        color=color,
+        min_price=min_price,
+        max_price=max_price,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/filter-options")
+def get_filter_options(
+    db: DB,
+    category: Category | None = None,
+    gender: Gender | None = None,
+):
+    """Returns available sizes, colors, and price min/max for dynamic UI filtering."""
+    base = select(Product.id).where(Product.is_active.is_(True))
+    if category:
+        base = base.where(Product.category == category)
+    if gender:
+        base = base.where(Product.gender == gender)
+    sub = base.subquery()
+
+    # Sizes with stock > 0
+    sizes = db.scalars(
+        select(ProductSize.size)
+        .where(ProductSize.product_id.in_(select(sub.c.id)), ProductSize.stock > 0)
+        .distinct()
+        .order_by(ProductSize.size.asc())
+    ).all()
+
+    # Colors
+    colors_raw = db.execute(
+        select(ProductColor.name, ProductColor.code)
+        .where(ProductColor.product_id.in_(select(sub.c.id)))
+        .distinct()
+        .order_by(ProductColor.name.asc())
+    ).all()
+    colors = [{"name": r[0], "code": r[1]} for r in colors_raw]
+
+    # Price range
+    eff_price = Product.price * (1.0 - func.coalesce(Product.discount_percent, 0) / 100.0)
+    prices = db.execute(
+        select(
+            func.min(eff_price).label("min_price"),
+            func.max(eff_price).label("max_price"),
+        ).where(Product.id.in_(select(sub.c.id)))
+    ).one_or_none()
+
+    min_p = float(prices.min_price) if prices and prices.min_price is not None else 0
+    max_p = float(prices.max_price) if prices and prices.max_price is not None else 5000
+
+    return {
+        "sizes": list(sizes),
+        "colors": colors,
+        "min_price": round(min_p, 2),
+        "max_price": round(max_p, 2),
+    }
 
 
 @router.get("/latest", response_model=list[ProductOut])
