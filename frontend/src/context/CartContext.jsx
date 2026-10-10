@@ -18,7 +18,9 @@ export function CartProvider({ children }) {
   })
   const [bump, setBump] = useState(0)
 
-  useEffect(() => localStorage.setItem(KEY, JSON.stringify(items)), [items])
+  useEffect(() => {
+    localStorage.setItem(KEY, JSON.stringify(items))
+  }, [items])
 
   const add = (product, qty = 1) => {
     setItems((prev) => {
