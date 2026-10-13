@@ -53,16 +53,34 @@ async def lifespan(_: FastAPI):
 
         # b) Inject default Manager & Admin and c) Populate demo products & categories & departments
         with SessionLocal() as db:
+            from sqlalchemy import or_, select, text
+            from .models import Category, Department, Gender
+            from .seed import MEN_DEPARTMENT_IMAGE, WOMEN_DEPARTMENT_IMAGE
+
             manager = ensure_first_manager(db)
             ensure_first_admin(db)
             ensure_default_departments(db)
             seed_products(db, manager)
 
+            # Guard & heal: Guarantee Women's and Men's departments/categories have distinct, permanent images
+            try:
+                all_depts = db.scalars(select(Department)).all()
+                for d in all_depts:
+                    name_lower = d.name.lower()
+                    if any(w in name_lower for w in ("نسا", "نساء", "نسائي", "نسائ", "women")):
+                        if not d.image_url or "photo-1507679799987" in d.image_url or "men" in d.image_url.lower():
+                            d.image_url = WOMEN_DEPARTMENT_IMAGE
+                    elif any(w in name_lower for w in ("رجال", "رجالي", "men")):
+                        if not d.image_url or "photo-1508214751196" in d.image_url or "women" in d.image_url.lower():
+                            d.image_url = MEN_DEPARTMENT_IMAGE
+                db.commit()
+            except Exception as e:
+                print(f"[WARN] Healing department images skipped: {e}")
+
             # Auto-link products to departments based on gender if department_id is null
             try:
-                from .models import Department, Gender
                 dept_men = db.scalar(select(Department).where(Department.name.ilike("%رجال%")))
-                dept_women = db.scalar(select(Department).where(Department.name.ilike("%نساء%")))
+                dept_women = db.scalar(select(Department).where(or_(Department.name.ilike("%نسا%"), Department.name.ilike("%women%"))))
                 if dept_men:
                     db.execute(text(f"UPDATE products SET department_id = {dept_men.id} WHERE (department_id IS NULL OR department_id = 0) AND gender = 'men'"))
                 if dept_women:
@@ -101,6 +119,10 @@ for r in (auth.router, categories.router, departments.router, products.router, o
 upload_dir = Path(settings.UPLOAD_DIR)
 upload_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")
+
+static_dir = Path(__file__).resolve().parent.parent / "static"
+static_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
 @app.get("/api/health", tags=["meta"])

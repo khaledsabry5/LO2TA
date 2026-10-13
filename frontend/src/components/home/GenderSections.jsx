@@ -5,8 +5,18 @@ import { api } from '../../lib/api'
 import { resolveMediaUrl } from '../../lib/format'
 
 const DEFAULT_SECTIONS = [
-  { id: 'men', name: 'الرجال', subtitle: 'أناقة كلاسيكية بلمسة عصرية', image_url: '/images/men.jpg' },
-  { id: 'women', name: 'النساء', subtitle: 'تفاصيل راقية لكل إطلالة', image_url: '/images/women.jpg' },
+  {
+    id: 'men',
+    name: 'الرجال',
+    subtitle: 'أناقة كلاسيكية بلمسة عصرية',
+    image_url: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    id: 'women',
+    name: 'النساء',
+    subtitle: 'تفاصيل راقية لكل إطلالة',
+    image_url: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80',
+  },
 ]
 
 function getDepartmentSubtitle(name) {
@@ -58,7 +68,24 @@ export default function GenderSections() {
       <h2 id="gender-heading" className="sr-only">الفئات الرئيسية</h2>
       <div className={gridClass}>
         {departments.map((dept) => {
-          const rawImg = dept.image_url || (dept.id === 'women' ? '/images/women.jpg' : '/images/men.jpg')
+          const isWomen =
+            dept.id === 'women' ||
+            String(dept.name || '').includes('نساء') ||
+            String(dept.name || '').includes('نسائي') ||
+            String(dept.name || '').includes('نسا')
+          const defaultCdnImg = isWomen
+            ? 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80'
+            : 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80'
+
+          let rawImg = dept.image_url
+          if (isWomen && (!rawImg || rawImg.includes('1507679799987') || rawImg.endsWith('men.jpg') || rawImg.endsWith('men_category.jpg'))) {
+            rawImg = defaultCdnImg
+          } else if (!isWomen && (!rawImg || rawImg.includes('1508214751196') || rawImg.endsWith('women.jpg') || rawImg.endsWith('women_category.jpg'))) {
+            rawImg = defaultCdnImg
+          } else if (!rawImg) {
+            rawImg = defaultCdnImg
+          }
+
           const imgUrl = resolveMediaUrl(rawImg)
           const subtitle = dept.subtitle || getDepartmentSubtitle(dept.name)
           const targetUrl = getDepartmentLink(dept)
@@ -74,7 +101,7 @@ export default function GenderSections() {
                 src={imgUrl}
                 alt={dept.name}
                 onError={(e) => {
-                  e.currentTarget.src = dept.name?.includes('نساء') ? '/images/women.jpg' : '/images/men.jpg'
+                  e.currentTarget.src = isWomen ? '/images/women.jpg' : '/images/men.jpg'
                 }}
                 className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-[1200ms] ease-out group-hover:scale-105"
               />

@@ -18,7 +18,7 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from .database import Base
 
@@ -104,6 +104,17 @@ class Department(Base):
 
     products: Mapped[list[Product]] = relationship(back_populates="department")
 
+    @validates("image_url")
+    def validate_department_image(self, key, value):
+        if value and self.name:
+            if any(w in self.name for w in ("نسا", "نساء", "نسائي", "نسائ", "women")):
+                if "photo-1507679799987" in value or value.endswith("men.jpg") or value.endswith("men_category.jpg"):
+                    return "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80"
+            elif any(w in self.name for w in ("رجال", "رجالي", "men")):
+                if "photo-1508214751196" in value or value.endswith("women.jpg") or value.endswith("women_category.jpg"):
+                    return "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80"
+        return value
+
 
 # --------------------------------------------------------------------------- #
 # Categories (Dynamic Table)
@@ -117,6 +128,17 @@ class Category(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     products: Mapped[list[Product]] = relationship(back_populates="category", cascade="all, delete-orphan")
+
+    @validates("image_url")
+    def validate_category_image(self, key, value):
+        if value and self.name:
+            if any(w in self.name for w in ("نسا", "نساء", "نسائي", "نسائ", "women")):
+                if "photo-1507679799987" in value or value.endswith("men.jpg") or value.endswith("men_category.jpg"):
+                    return "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80"
+            elif any(w in self.name for w in ("رجال", "رجالي", "men")):
+                if "photo-1508214751196" in value or value.endswith("women.jpg") or value.endswith("women_category.jpg"):
+                    return "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80"
+        return value
 
 
 # --------------------------------------------------------------------------- #

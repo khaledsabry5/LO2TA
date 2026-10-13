@@ -2,7 +2,7 @@
 import sys
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from .config import settings
 from .database import Base, SessionLocal, engine
@@ -11,29 +11,64 @@ from .security import hash_password
 
 IMG = "/images/products"
 
+# Option A: Stable, host-agnostic permanent CDN URLs for Men & Women departments
+MEN_DEPARTMENT_IMAGE = "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80"
+WOMEN_DEPARTMENT_IMAGE = "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80"
+
 DEFAULT_DEPARTMENTS = [
-    ("رجالي", f"{IMG}/sneaker.jpg"),
-    ("نسائي", f"{IMG}/handbag.jpg"),
+    ("رجالي", MEN_DEPARTMENT_IMAGE),
+    ("نسائي", WOMEN_DEPARTMENT_IMAGE),
 ]
 
 DEFAULT_CATEGORIES = [
-    ("الأحذية", f"{IMG}/sneaker.jpg"),
-    ("الشنط", f"{IMG}/handbag.jpg"),
-    ("الساعات", f"{IMG}/steel-watch.jpg"),
-    ("النظارات والإكسسوارات", f"{IMG}/sunglasses.jpg"),
+    ("الأحذية", "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80"),
+    ("الشنط", "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=600&q=80"),
+    ("الساعات", "https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=600&q=80"),
+    ("النظارات والإكسسوارات", "https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=600&q=80"),
 ]
 
 
 def ensure_default_departments(db) -> list[Department]:
-    """Ensures the 2 default departments exist in database."""
+    """Ensures default departments exist in database with dedicated, distinct CDN images."""
+    assert MEN_DEPARTMENT_IMAGE != WOMEN_DEPARTMENT_IMAGE, "Men and Women department images must be distinct!"
+
     results = []
-    for name, img in DEFAULT_DEPARTMENTS:
+    for name, default_img in DEFAULT_DEPARTMENTS:
         dept = db.scalar(select(Department).where(Department.name == name))
         if not dept:
-            dept = Department(name=name, image_url=img)
+            dept = Department(name=name, image_url=default_img)
             db.add(dept)
             db.flush()
+        else:
+            is_women_dept = any(w in name for w in ("نسا", "نساء", "نسائي", "نسائ", "women"))
+            is_men_dept = any(w in name for w in ("رجال", "رجالي", "men"))
+
+            # Always ensure permanent, non-ephemeral, non-broken images on Railway
+            if not dept.image_url or dept.image_url.startswith("/uploads/") or dept.image_url.startswith("/images/"):
+                dept.image_url = default_img
+            elif is_women_dept and (
+                "photo-1507679799987" in dept.image_url
+                or "men" in dept.image_url.lower()
+                or dept.image_url == MEN_DEPARTMENT_IMAGE
+            ):
+                dept.image_url = WOMEN_DEPARTMENT_IMAGE
+            elif is_men_dept and (
+                "photo-1508214751196" in dept.image_url
+                or "women" in dept.image_url.lower()
+                or dept.image_url == WOMEN_DEPARTMENT_IMAGE
+            ):
+                dept.image_url = MEN_DEPARTMENT_IMAGE
+
         results.append(dept)
+
+    # Double-check database integrity: Women and Men departments must never share the same image
+    dept_men = db.scalar(select(Department).where(Department.name.ilike("%رجال%")))
+    dept_women = db.scalar(select(Department).where(or_(Department.name.ilike("%نسا%"), Department.name.ilike("%women%"))))
+    if dept_men and dept_women:
+        if dept_men.image_url == dept_women.image_url:
+            dept_women.image_url = WOMEN_DEPARTMENT_IMAGE
+            dept_men.image_url = MEN_DEPARTMENT_IMAGE
+
     db.commit()
     return results
 
@@ -65,14 +100,18 @@ DEMO_PRODUCTS = [
 
 
 def ensure_default_categories(db) -> dict[str, Category]:
-    """Ensures the 4 default categories exist in database."""
+    """Ensures the 4 default categories exist in database with permanent CDN images."""
     category_map = {}
-    for name, img in DEFAULT_CATEGORIES:
+    for name, default_img in DEFAULT_CATEGORIES:
         cat = db.scalar(select(Category).where(Category.name == name))
         if not cat:
-            cat = Category(name=name, image_url=img)
+            cat = Category(name=name, image_url=default_img)
             db.add(cat)
             db.flush()
+        else:
+            # Overwrite if image is missing or points to ephemeral local uploads/images on Railway
+            if not cat.image_url or cat.image_url.startswith("/uploads/") or cat.image_url.startswith("/images/"):
+                cat.image_url = default_img
         category_map[name] = cat
     db.commit()
     return category_map

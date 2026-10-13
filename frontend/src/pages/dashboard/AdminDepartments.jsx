@@ -10,6 +10,7 @@ import {
   Check,
 } from 'lucide-react'
 import { api } from '../../lib/api'
+import { resolveMediaUrl } from '../../lib/format'
 import { Alert, PageLoader, Spinner } from '../../components/ui'
 import './AdminDepartments.css'
 
@@ -340,28 +341,40 @@ export default function AdminDepartments() {
                 </tr>
               </thead>
               <tbody>
-                {departments.map((dept) => (
-                  <tr key={dept.id}>
-                    <td>
-                      <div className="department-row-meta">
-                        <img
-                          src={dept.image_url || '/images/products/sneaker.jpg'}
-                          alt={dept.name}
-                          className="department-thumbnail"
-                        />
-                        <div>
-                          <p className="department-name-text">{dept.name}</p>
-                          <p className="department-id-badge">معرف #{dept.id}</p>
+                {departments.map((dept) => {
+                  const isWomen =
+                    String(dept.name || '').includes('نساء') ||
+                    String(dept.name || '').includes('نسائي') ||
+                    String(dept.name || '').includes('نسا')
+                  const defaultFallback = isWomen
+                    ? 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80'
+                    : 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80'
+
+                  return (
+                    <tr key={dept.id}>
+                      <td>
+                        <div className="department-row-meta">
+                          <img
+                            src={resolveMediaUrl(dept.image_url) || defaultFallback}
+                            alt={dept.name}
+                            onError={(e) => {
+                              e.currentTarget.src = isWomen ? '/images/women.jpg' : '/images/men.jpg'
+                            }}
+                            className="department-thumbnail"
+                          />
+                          <div>
+                            <p className="department-name-text">{dept.name}</p>
+                            <p className="department-id-badge">معرف #{dept.id}</p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="text-xs text-ink-muted dir-ltr font-mono">
-                        {dept.image_url ? dept.image_url.split('/').pop() : '—'}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="department-actions-group">
+                      </td>
+                      <td>
+                        <span className="text-xs text-ink-muted dir-ltr font-mono">
+                          {dept.image_url ? dept.image_url.split('/').pop() : '—'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="department-actions-group">
                         <button
                           type="button"
                           onClick={() => openEditModal(dept)}
@@ -388,7 +401,8 @@ export default function AdminDepartments() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                )
+              })}
                 {departments.length === 0 && (
                   <tr>
                     <td colSpan={3} className="text-center py-8 text-ink-muted">
@@ -442,7 +456,7 @@ export default function AdminDepartments() {
                 {/* Current Image Indicator */}
                 <div className="department-current-preview-box">
                   <img
-                    src={editImagePreview || editingDept.image_url}
+                    src={editImagePreview || resolveMediaUrl(editingDept.image_url)}
                     alt={editingDept.name}
                     className="department-current-preview-img"
                   />

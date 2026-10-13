@@ -49,6 +49,14 @@ def create_department(
     if not img_path:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "يجب رفع صورة للفئة أو توفير رابط الصورة")
 
+    # Enforce women/men image isolation: Prevent women's department from using male image
+    if any(w in clean_name.lower() for w in ("نسا", "نساء", "نسائي", "نسائ", "women")):
+        if "photo-1507679799987" in img_path or img_path.endswith("men.jpg") or img_path.endswith("men_category.jpg"):
+            img_path = "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80"
+    elif any(w in clean_name.lower() for w in ("رجال", "رجالي", "men")):
+        if "photo-1508214751196" in img_path or img_path.endswith("women.jpg") or img_path.endswith("women_category.jpg"):
+            img_path = "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80"
+
     department = Department(name=clean_name, image_url=img_path)
     db.add(department)
     db.commit()
@@ -90,6 +98,15 @@ def update_department(
         dept.image_url = new_img
     elif image_url and image_url.strip():
         dept.image_url = image_url.strip()
+
+    # Enforce women/men image isolation on update
+    target_name = (dept.name or "").lower()
+    if any(w in target_name for w in ("نسا", "نساء", "نسائي", "نسائ", "women")):
+        if not dept.image_url or "photo-1507679799987" in dept.image_url or dept.image_url.endswith("men.jpg") or dept.image_url.endswith("men_category.jpg"):
+            dept.image_url = "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80"
+    elif any(w in target_name for w in ("رجال", "رجالي", "men")):
+        if not dept.image_url or "photo-1508214751196" in dept.image_url or dept.image_url.endswith("women.jpg") or dept.image_url.endswith("women_category.jpg"):
+            dept.image_url = "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80"
 
     db.commit()
     db.refresh(dept)
