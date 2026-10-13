@@ -29,7 +29,9 @@ def _get_product(db, product_id: int) -> Product:
         .where(Product.id == product_id)
         .options(
             selectinload(Product.category),
+            selectinload(Product.categories),
             selectinload(Product.department),
+            selectinload(Product.departments),
             selectinload(Product.media),
             selectinload(Product.sizes),
             selectinload(Product.colors),
@@ -56,45 +58,131 @@ def _apply_filters(
     if category is not None and str(category).strip():
         cat_str = str(category).strip()
         if cat_str.isdigit():
-            stmt = stmt.where(Product.category_id == int(cat_str))
-        else:
-            legacy_map = {
-                "shoes": "الأحذية",
-                "bags": "الشنط",
-                "watches": "الساعات",
-                "glasses": "النظارات والإكسسوارات",
-                "sunglasses": "النظارات والإكسسوارات",
-            }
-            target_name = legacy_map.get(cat_str.lower(), cat_str)
-            stmt = stmt.join(Product.category).where(
+            c_id = int(cat_str)
+            stmt = stmt.where(
                 or_(
-                    func.lower(Category.name) == target_name.lower(),
-                    Category.name.ilike(f"%{cat_str}%"),
+                    Product.category_id == c_id,
+                    Product.categories.any(Category.id == c_id),
                 )
             )
+        else:
+            cat_lower = cat_str.lower()
+            if cat_lower in ("men", "رجالي", "الرجال"):
+                stmt = stmt.where(
+                    or_(
+                        Product.gender.in_([Gender.MEN, Gender.UNISEX]),
+                        Product.department_id == 1,
+                        Product.departments.any(or_(Department.name.ilike("%رجال%"), Department.id == 1)),
+                    )
+                )
+            elif cat_lower in ("women", "نسائي", "النساء"):
+                stmt = stmt.where(
+                    or_(
+                        Product.gender.in_([Gender.WOMEN, Gender.UNISEX]),
+                        Product.department_id == 2,
+                        Product.departments.any(or_(Department.name.ilike("%نسا%"), Department.id == 2)),
+                    )
+                )
+            else:
+                legacy_map = {
+                    "shoes": "الأحذية",
+                    "bags": "الشنط",
+                    "watches": "الساعات",
+                    "glasses": "النظارات والإكسسوارات",
+                    "sunglasses": "النظارات والإكسسوارات",
+                }
+                target_name = legacy_map.get(cat_lower, cat_str)
+                stmt = stmt.where(
+                    or_(
+                        Product.categories.any(
+                            or_(
+                                func.lower(Category.name) == target_name.lower(),
+                                Category.name.ilike(f"%{cat_str}%"),
+                            )
+                        ),
+                        Product.category.has(
+                            or_(
+                                func.lower(Category.name) == target_name.lower(),
+                                Category.name.ilike(f"%{cat_str}%"),
+                            )
+                        ),
+                    )
+                )
+
     dept_val = department_id if department_id is not None else department
     if dept_val is not None and str(dept_val).strip():
         dept_str = str(dept_val).strip()
         if dept_str.isdigit():
             d_id = int(dept_str)
             if d_id == 1:
-                stmt = stmt.where(or_(Product.department_id == 1, Product.gender == Gender.MEN))
+                stmt = stmt.where(
+                    or_(
+                        Product.department_id == 1,
+                        Product.gender.in_([Gender.MEN, Gender.UNISEX]),
+                        Product.departments.any(Department.id == 1),
+                    )
+                )
             elif d_id == 2:
-                stmt = stmt.where(or_(Product.department_id == 2, Product.gender == Gender.WOMEN))
+                stmt = stmt.where(
+                    or_(
+                        Product.department_id == 2,
+                        Product.gender.in_([Gender.WOMEN, Gender.UNISEX]),
+                        Product.departments.any(Department.id == 2),
+                    )
+                )
             else:
-                stmt = stmt.where(Product.department_id == d_id)
+                stmt = stmt.where(
+                    or_(
+                        Product.department_id == d_id,
+                        Product.departments.any(Department.id == d_id),
+                    )
+                )
         else:
             if dept_str.lower() in ("men", "رجالي", "الرجال"):
-                stmt = stmt.where(or_(Product.department_id == 1, Product.gender == Gender.MEN))
+                stmt = stmt.where(
+                    or_(
+                        Product.department_id == 1,
+                        Product.gender.in_([Gender.MEN, Gender.UNISEX]),
+                        Product.departments.any(or_(Department.name.ilike("%رجال%"), Department.id == 1)),
+                    )
+                )
             elif dept_str.lower() in ("women", "نسائي", "النساء"):
-                stmt = stmt.where(or_(Product.department_id == 2, Product.gender == Gender.WOMEN))
+                stmt = stmt.where(
+                    or_(
+                        Product.department_id == 2,
+                        Product.gender.in_([Gender.WOMEN, Gender.UNISEX]),
+                        Product.departments.any(or_(Department.name.ilike("%نسا%"), Department.id == 2)),
+                    )
+                )
             else:
-                stmt = stmt.outerjoin(Product.department).where(
-                    Department.name.ilike(f"%{dept_str}%")
+                stmt = stmt.where(
+                    or_(
+                        Product.departments.any(Department.name.ilike(f"%{dept_str}%")),
+                        Product.department.has(Department.name.ilike(f"%{dept_str}%")),
+                    )
                 )
 
     if gender:
-        stmt = stmt.where(Product.gender == gender)
+        if gender == Gender.MEN:
+            stmt = stmt.where(
+                or_(
+                    Product.gender.in_([Gender.MEN, Gender.UNISEX]),
+                    Product.department_id == 1,
+                    Product.departments.any(Department.id == 1),
+                )
+            )
+        elif gender == Gender.WOMEN:
+            stmt = stmt.where(
+                or_(
+                    Product.gender.in_([Gender.WOMEN, Gender.UNISEX]),
+                    Product.department_id == 2,
+                    Product.departments.any(Department.id == 2),
+                )
+            )
+        elif gender == Gender.UNISEX:
+            stmt = stmt.where(Product.gender == Gender.UNISEX)
+        else:
+            stmt = stmt.where(Product.gender == gender)
     if discounted:
         stmt = stmt.where(Product.discount_percent > 0)
     if q:
@@ -169,7 +257,9 @@ def list_products(
     items = db.scalars(
         stmt.options(
             selectinload(Product.category),
+            selectinload(Product.categories),
             selectinload(Product.department),
+            selectinload(Product.departments),
             selectinload(Product.media),
             selectinload(Product.sizes),
             selectinload(Product.colors),
@@ -192,7 +282,8 @@ def get_filter_options(
     if category is not None and str(category).strip():
         cat_str = str(category).strip()
         if cat_str.isdigit():
-            base = base.where(Product.category_id == int(cat_str))
+            c_id = int(cat_str)
+            base = base.where(or_(Product.category_id == c_id, Product.categories.any(Category.id == c_id)))
         else:
             legacy_map = {
                 "shoes": "الأحذية",
@@ -202,14 +293,29 @@ def get_filter_options(
                 "sunglasses": "النظارات والإكسسوارات",
             }
             target_name = legacy_map.get(cat_str.lower(), cat_str)
-            base = base.join(Product.category).where(
+            base = base.where(
                 or_(
-                    func.lower(Category.name) == target_name.lower(),
-                    Category.name.ilike(f"%{cat_str}%"),
+                    Product.categories.any(
+                        or_(
+                            func.lower(Category.name) == target_name.lower(),
+                            Category.name.ilike(f"%{cat_str}%"),
+                        )
+                    ),
+                    Product.category.has(
+                        or_(
+                            func.lower(Category.name) == target_name.lower(),
+                            Category.name.ilike(f"%{cat_str}%"),
+                        )
+                    ),
                 )
             )
     if gender:
-        base = base.where(Product.gender == gender)
+        if gender == Gender.MEN:
+            base = base.where(or_(Product.gender.in_([Gender.MEN, Gender.UNISEX]), Product.department_id == 1, Product.departments.any(Department.id == 1)))
+        elif gender == Gender.WOMEN:
+            base = base.where(or_(Product.gender.in_([Gender.WOMEN, Gender.UNISEX]), Product.department_id == 2, Product.departments.any(Department.id == 2)))
+        elif gender == Gender.UNISEX:
+            base = base.where(Product.gender == Gender.UNISEX)
     sub = base.subquery()
 
     # Sizes with stock > 0
@@ -257,7 +363,9 @@ def latest_products(db: DB):
         .where(Product.is_active.is_(True))
         .options(
             selectinload(Product.category),
+            selectinload(Product.categories),
             selectinload(Product.department),
+            selectinload(Product.departments),
             selectinload(Product.media),
             selectinload(Product.sizes),
             selectinload(Product.colors),
@@ -287,7 +395,9 @@ def manage_list(
     items = db.scalars(
         stmt.options(
             selectinload(Product.category),
+            selectinload(Product.categories),
             selectinload(Product.department),
+            selectinload(Product.departments),
             selectinload(Product.media),
             selectinload(Product.sizes),
             selectinload(Product.colors),
@@ -309,16 +419,56 @@ def create_product(data: ProductCreate, db: DB, user: StaffUser):
     raw_data = data.model_dump()
     sizes_data = raw_data.pop("sizes", None)
     colors_data = raw_data.pop("colors", None)
+    category_ids = raw_data.pop("category_ids", []) or []
+    department_ids = raw_data.pop("department_ids", []) or []
 
-    cat = db.get(Category, data.category_id)
-    if not cat:
+    # Handle multiple categories
+    if raw_data.get("category_id") and raw_data["category_id"] not in category_ids:
+        category_ids.append(raw_data["category_id"])
+
+    if not category_ids and raw_data.get("category_id"):
+        category_ids = [raw_data["category_id"]]
+
+    if not category_ids:
+        first_cat = db.scalars(select(Category).order_by(Category.id.asc())).first()
+        if first_cat:
+            category_ids = [first_cat.id]
+
+    selected_categories = db.scalars(select(Category).where(Category.id.in_(category_ids))).all()
+    if not selected_categories:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "التصنيف المحدد غير موجود")
 
-    is_shoes = bool(cat and ("حذاء" in cat.name or "أحذية" in cat.name or "shoes" in cat.name.lower()))
+    raw_data["category_id"] = selected_categories[0].id
+
+    # Handle multiple departments / gender
+    if raw_data.get("department_id") and raw_data["department_id"] not in department_ids:
+        department_ids.append(raw_data["department_id"])
+
+    selected_departments = []
+    if department_ids:
+        selected_departments = db.scalars(select(Department).where(Department.id.in_(department_ids))).all()
+        raw_data["department_id"] = selected_departments[0].id
+        has_men = any("رجال" in d.name for d in selected_departments) or 1 in department_ids
+        has_women = any("نسا" in d.name for d in selected_departments) or 2 in department_ids
+        if has_men and has_women:
+            raw_data["gender"] = Gender.UNISEX
+        elif has_women:
+            raw_data["gender"] = Gender.WOMEN
+        elif has_men:
+            raw_data["gender"] = Gender.MEN
+    elif raw_data.get("gender") == Gender.UNISEX:
+        depts = db.scalars(select(Department).where(or_(Department.id.in_([1, 2]), Department.name.ilike("%رجال%"), Department.name.ilike("%نسا%")))).all()
+        selected_departments = depts
+        if depts:
+            raw_data["department_id"] = depts[0].id
+
+    is_shoes = any("حذاء" in c.name or "أحذية" in c.name or "shoes" in c.name.lower() for c in selected_categories)
     if is_shoes and sizes_data:
         raw_data["stock"] = sum(s["stock"] for s in sizes_data)
 
     product = Product(**raw_data, created_by_id=user.id)
+    product.categories = list(selected_categories)
+    product.departments = list(selected_departments)
     db.add(product)
     db.flush()
 
@@ -340,16 +490,60 @@ def update_product(product_id: int, data: ProductUpdate, db: DB, _: StaffUser):
     raw = data.model_dump(exclude_unset=True)
     sizes_data = raw.pop("sizes", None)
     colors_data = raw.pop("colors", None)
+    category_ids = raw.pop("category_ids", None)
+    department_ids = raw.pop("department_ids", None)
 
-    if "category_id" in raw and raw["category_id"] is not None:
+    if category_ids is not None:
+        if len(category_ids) > 0:
+            cats = db.scalars(select(Category).where(Category.id.in_(category_ids))).all()
+            if not cats:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "التصنيفات المحددة غير موجودة")
+            product.categories = list(cats)
+            product.category_id = cats[0].id
+        else:
+            product.categories = []
+            product.category_id = None
+    elif "category_id" in raw and raw["category_id"] is not None:
         cat = db.get(Category, raw["category_id"])
         if not cat:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "التصنيف المحدد غير موجود")
+        product.category_id = cat.id
+        if cat not in product.categories:
+            product.categories = [cat]
+
+    if department_ids is not None:
+        if len(department_ids) > 0:
+            depts = db.scalars(select(Department).where(Department.id.in_(department_ids))).all()
+            product.departments = list(depts)
+            product.department_id = depts[0].id
+            has_men = any("رجال" in d.name for d in depts) or 1 in department_ids
+            has_women = any("نسا" in d.name for d in depts) or 2 in department_ids
+            if has_men and has_women:
+                product.gender = Gender.UNISEX
+            elif has_women:
+                product.gender = Gender.WOMEN
+            elif has_men:
+                product.gender = Gender.MEN
+        else:
+            product.departments = []
+            product.department_id = None
+    elif "department_id" in raw and raw["department_id"] is not None:
+        dept = db.get(Department, raw["department_id"])
+        if dept:
+            product.department_id = dept.id
+            if dept not in product.departments:
+                product.departments = [dept]
 
     for field, value in raw.items():
         setattr(product, field, value)
 
-    is_shoes = bool(product.category and ("حذاء" in product.category.name or "أحذية" in product.category.name or "shoes" in product.category.name.lower()))
+    if product.gender == Gender.UNISEX and len(product.departments) < 2:
+        depts = db.scalars(select(Department).where(or_(Department.id.in_([1, 2]), Department.name.ilike("%رجال%"), Department.name.ilike("%نسا%")))).all()
+        if depts:
+            product.departments = list(depts)
+            product.department_id = depts[0].id
+
+    is_shoes = any("حذاء" in c.name or "أحذية" in c.name or "shoes" in c.name.lower() for c in product.categories) or bool(product.category and ("حذاء" in product.category.name or "أحذية" in product.category.name or "shoes" in product.category.name.lower()))
 
     if sizes_data is not None:
         product.sizes.clear()

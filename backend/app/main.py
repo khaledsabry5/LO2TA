@@ -22,6 +22,13 @@ async def lifespan(_: FastAPI):
 
         from sqlalchemy import text
         with engine.connect() as conn:
+            # PostgreSQL ENUM unisex addition
+            try:
+                conn.execute(text("ALTER TYPE product_gender ADD VALUE IF NOT EXISTS 'unisex'"))
+                conn.commit()
+            except Exception:
+                pass
+
             if "sqlite" in engine.url.drivername:
                 for col in (
                     "selected_size INTEGER",
@@ -50,6 +57,49 @@ async def lifespan(_: FastAPI):
                     conn.commit()
                 except Exception:
                     pass
+
+            # Association tables creation & safe backfill
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS product_category_link (
+                        product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+                        category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+                        PRIMARY KEY (product_id, category_id)
+                    )
+                """))
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS product_department_link (
+                        product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+                        department_id INTEGER NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+                        PRIMARY KEY (product_id, department_id)
+                    )
+                """))
+                conn.commit()
+
+                # Backfill product_category_link from existing category_id
+                conn.execute(text("""
+                    INSERT INTO product_category_link (product_id, category_id)
+                    SELECT id, category_id FROM products
+                    WHERE category_id IS NOT NULL
+                    AND NOT EXISTS (
+                        SELECT 1 FROM product_category_link pcl
+                        WHERE pcl.product_id = products.id AND pcl.category_id = products.category_id
+                    )
+                """))
+
+                # Backfill product_department_link from existing department_id
+                conn.execute(text("""
+                    INSERT INTO product_department_link (product_id, department_id)
+                    SELECT id, department_id FROM products
+                    WHERE department_id IS NOT NULL
+                    AND NOT EXISTS (
+                        SELECT 1 FROM product_department_link pdl
+                        WHERE pdl.product_id = products.id AND pdl.department_id = products.department_id
+                    )
+                """))
+                conn.commit()
+            except Exception as e:
+                print(f"[WARN] Association tables migration/backfill skipped: {e}")
 
         # b) Inject default Manager & Admin and c) Populate demo products & categories & departments
         with SessionLocal() as db:

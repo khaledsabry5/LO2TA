@@ -80,21 +80,26 @@ export default function ProductDetail() {
       : [{ id: 0, url: '', media_type: 'image' }]
   const current = media[active]
 
-  // Dynamic category detection (supporting category object, ID, or legacy string)
-  const categoryName = typeof product.category === 'object' ? (product.category?.name || '') : String(product.category || '')
-  const categoryId = product.category_id || product.category?.id
+  // Dynamic category detection (supporting multiple categories array, category object, ID, or legacy string)
+  const allCatNames = [
+    typeof product.category === 'object' ? (product.category?.name || '') : String(product.category || ''),
+    ...(Array.isArray(product.categories) ? product.categories.map((c) => c.name || '') : []),
+  ].map((s) => s.toLowerCase())
 
-  const isShoes = categoryId === 1 ||
-    categoryName === 'الأحذية' ||
-    categoryName.includes('أحذية') ||
-    categoryName.toLowerCase() === 'shoes' ||
-    categoryName.toLowerCase().includes('shoe')
+  const allCatIds = [
+    product.category_id,
+    product.category?.id,
+    ...(Array.isArray(product.categories) ? product.categories.map((c) => c.id) : []),
+  ].filter(Boolean)
 
-  const isBags = categoryId === 2 ||
-    categoryName === 'الشنط' ||
-    categoryName.includes('شنط') ||
-    categoryName.toLowerCase() === 'bags' ||
-    categoryName.toLowerCase().includes('bag')
+  const isShoes =
+    allCatIds.includes(1) ||
+    allCatNames.some((name) => name === 'shoes' || name.includes('shoe') || name === 'الأحذية' || name.includes('أحذية'))
+
+  const isBags =
+    allCatIds.includes(2) ||
+    allCatNames.some((name) => name === 'bags' || name.includes('bag') || name === 'الشنط' || name.includes('شنط'))
+
 
   // Requirement:
   // - Shoes category: display options for both Size and Color
@@ -216,9 +221,21 @@ export default function ProductDetail() {
 
         {/* Product Details & Variant Selectors */}
         <div className="flex flex-col">
-          <div className="flex gap-2">
-            <span className="chip bg-cream">{getCategoryName(product.category)}</span>
-            <span className="chip bg-cream-100">{GENDER_LABELS[product.gender]}</span>
+          <div className="flex flex-wrap gap-2">
+            {Array.isArray(product.categories) && product.categories.length > 0 ? (
+              product.categories.map((c) => (
+                <span key={c.id || c.name} className="chip bg-cream">
+                  {c.name}
+                </span>
+              ))
+            ) : (
+              <span className="chip bg-cream">{getCategoryName(product.category)}</span>
+            )}
+            {product.gender && (
+              <span className="chip bg-cream-100">
+                {GENDER_LABELS[product.gender] || (product.gender === 'unisex' ? 'للجنسين' : product.gender)}
+              </span>
+            )}
           </div>
           <h1 className="mt-3 text-2xl font-extrabold leading-tight sm:text-4xl">{product.name}</h1>
           <div className="mt-4">

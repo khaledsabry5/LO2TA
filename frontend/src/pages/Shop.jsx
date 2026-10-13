@@ -190,7 +190,7 @@ export default function Shop() {
   }
 
   const matchedDepartment = allDepartments.find((d) => String(d.id) === String(department) || d.name === department)
-  const departmentTitle = matchedDepartment?.name || (gender && (gender === 'men' ? 'الرجال' : 'النساء'))
+  const departmentTitle = matchedDepartment?.name || (gender && (gender === 'men' ? 'الرجال' : gender === 'women' ? 'النساء' : 'للجنسين'))
   const categoryTitle = matchedCategory?.name || (CATEGORY_LABELS[category] || (isNaN(Number(category)) ? category : ''))
 
   const title = q

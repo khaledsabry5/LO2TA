@@ -203,9 +203,11 @@ class MediaOut(ORM):
 class ProductBase(BaseModel):
     name: str = Field(min_length=2, max_length=200)
     description: str | None = None
-    category_id: int
+    category_id: int | None = None
+    category_ids: list[int] = Field(default_factory=list)
     department_id: int | None = None
-    gender: Gender
+    department_ids: list[int] = Field(default_factory=list)
+    gender: Gender = Gender.UNISEX
     price: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     stock: int = Field(ge=0, default=0)
     discount_percent: int = Field(ge=0, le=90, default=0)
@@ -221,7 +223,9 @@ class ProductUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=200)
     description: str | None = None
     category_id: int | None = None
+    category_ids: list[int] | None = None
     department_id: int | None = None
+    department_ids: list[int] | None = None
     gender: Gender | None = None
     price: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
     stock: int | None = Field(default=None, ge=0)
@@ -240,10 +244,14 @@ class ProductOut(ORM):
     id: int
     name: str
     description: str | None
-    category_id: int
+    category_id: int | None = None
     category: CategoryOut | None = None
+    category_ids: list[int] = []
+    categories: list[CategoryOut] = []
     department_id: int | None = None
     department: DepartmentOut | None = None
+    department_ids: list[int] = []
+    departments: list[DepartmentOut] = []
     gender: Gender
     price: Money
     discount_percent: int

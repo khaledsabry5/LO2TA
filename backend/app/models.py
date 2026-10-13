@@ -8,6 +8,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Column,
     DateTime,
     Enum as SAEnum,
     ForeignKey,
@@ -15,6 +16,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    Table,
     Text,
     func,
 )
@@ -35,6 +37,7 @@ class UserRole(str, enum.Enum):
 class Gender(str, enum.Enum):
     MEN = "men"
     WOMEN = "women"
+    UNISEX = "unisex"
 
 
 class MediaType(str, enum.Enum):
@@ -92,6 +95,24 @@ class User(Base):
 
 
 # --------------------------------------------------------------------------- #
+# Association Tables (Many-to-Many Links)
+# --------------------------------------------------------------------------- #
+product_category_link = Table(
+    "product_category_link",
+    Base.metadata,
+    Column("product_id", Integer, ForeignKey("products.id", ondelete="CASCADE"), primary_key=True),
+    Column("category_id", Integer, ForeignKey("categories.id", ondelete="CASCADE"), primary_key=True),
+)
+
+product_department_link = Table(
+    "product_department_link",
+    Base.metadata,
+    Column("product_id", Integer, ForeignKey("products.id", ondelete="CASCADE"), primary_key=True),
+    Column("department_id", Integer, ForeignKey("departments.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+# --------------------------------------------------------------------------- #
 # Departments (الفئات - e.g., Men, Women)
 # --------------------------------------------------------------------------- #
 class Department(Base):
@@ -102,7 +123,10 @@ class Department(Base):
     image_url: Mapped[str] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    products: Mapped[list[Product]] = relationship(back_populates="department")
+    products: Mapped[list[Product]] = relationship(
+        secondary=product_department_link,
+        back_populates="departments",
+    )
 
     @validates("image_url")
     def validate_department_image(self, key, value):
@@ -127,7 +151,10 @@ class Category(Base):
     image_url: Mapped[str] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    products: Mapped[list[Product]] = relationship(back_populates="category", cascade="all, delete-orphan")
+    products: Mapped[list[Product]] = relationship(
+        secondary=product_category_link,
+        back_populates="categories",
+    )
 
     @validates("image_url")
     def validate_category_image(self, key, value):
@@ -157,9 +184,9 @@ class Product(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text)
-    category_id: Mapped[int] = mapped_column(ForeignKey("categories.id", ondelete="RESTRICT"), index=True)
+    category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id", ondelete="SET NULL"), nullable=True, index=True)
     department_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id", ondelete="SET NULL"), nullable=True, index=True)
-    gender: Mapped[Gender] = mapped_column(pg_enum(Gender, "product_gender"))
+    gender: Mapped[Gender] = mapped_column(pg_enum(Gender, "product_gender"), default=Gender.UNISEX)
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     discount_percent: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     stock: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
@@ -171,8 +198,31 @@ class Product(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    category: Mapped[Category] = relationship(back_populates="products")
-    department: Mapped[Department | None] = relationship(back_populates="products")
+    category: Mapped[Category | None] = relationship(foreign_keys=[category_id])
+    department: Mapped[Department | None] = relationship(foreign_keys=[department_id])
+
+    categories: Mapped[list[Category]] = relationship(
+        secondary=product_category_link,
+        back_populates="products",
+    )
+    departments: Mapped[list[Department]] = relationship(
+        secondary=product_department_link,
+        back_populates="products",
+    )
+
+    @property
+    def category_ids(self) -> list[int]:
+        ids = [c.id for c in self.categories] if self.categories else []
+        if self.category_id and self.category_id not in ids:
+            ids.insert(0, self.category_id)
+        return ids
+
+    @property
+    def department_ids(self) -> list[int]:
+        ids = [d.id for d in self.departments] if self.departments else []
+        if self.department_id and self.department_id not in ids:
+            ids.insert(0, self.department_id)
+        return ids
 
     media: Mapped[list[ProductMedia]] = relationship(
         back_populates="product",

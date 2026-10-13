@@ -130,6 +130,7 @@ export default function ProductsAdmin() {
             <option value="">جميع الفئات</option>
             <option value="men">الرجال</option>
             <option value="women">النساء</option>
+            <option value="unisex">للجنسين (رجالي ونسائي)</option>
           </select>
         </div>
       </div>
@@ -186,8 +187,14 @@ export default function ProductsAdmin() {
                       </td>
                       <td className="p-3 sm:p-4">
                         <div className="flex flex-col gap-1">
-                          <span className="font-bold text-ink">{getCategoryName(p.category)}</span>
-                          <span className="text-xs text-ink-muted">{GENDER_LABELS[p.gender]}</span>
+                          <span className="font-bold text-ink">
+                            {Array.isArray(p.categories) && p.categories.length > 0
+                              ? p.categories.map((c) => c.name).join('، ')
+                              : getCategoryName(p.category)}
+                          </span>
+                          <span className="text-xs text-ink-muted">
+                            {GENDER_LABELS[p.gender] || (p.gender === 'unisex' ? 'للجنسين' : p.gender)}
+                          </span>
                         </div>
                       </td>
                       <td className="p-3 sm:p-4">

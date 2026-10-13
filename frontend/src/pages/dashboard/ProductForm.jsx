@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { ArrowRight, Upload, X, Trash2, Film, Image as ImageIcon, Plus } from 'lucide-react'
+import { ArrowRight, Upload, X, Trash2, Film, Image as ImageIcon, Plus, Check } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Spinner, Alert, PageLoader } from '../../components/ui'
 import { money } from '../../lib/format'
@@ -15,7 +15,9 @@ export default function ProductForm() {
     description: '',
     gender: 'men',
     department_id: null,
+    department_ids: [],
     category_id: null,
+    category_ids: [],
     category: '',
     price: '',
     stock: '10',
@@ -59,8 +61,9 @@ export default function ProductForm() {
           if (!isEdit && depts.length > 0) {
             setForm((prev) => ({
               ...prev,
+              department_ids: prev.department_ids?.length ? prev.department_ids : [depts[0].id],
               department_id: prev.department_id || depts[0].id,
-              gender: depts[0].name.includes('نساء') ? 'women' : 'men',
+              gender: prev.gender || (depts[0].name.includes('نساء') ? 'women' : 'men'),
             }))
           }
         }
@@ -74,6 +77,7 @@ export default function ProductForm() {
           if (!isEdit && cats.length > 0) {
             setForm((prev) => ({
               ...prev,
+              category_ids: prev.category_ids?.length ? prev.category_ids : [cats[0].id],
               category_id: prev.category_id || cats[0].id,
               category: prev.category || cats[0].name,
             }))
@@ -88,15 +92,28 @@ export default function ProductForm() {
       api
         .manageProduct(id)
         .then((p) => {
-          const catId = p.category_id || (p.category?.id) || null
+          const deptIds = Array.isArray(p.department_ids) && p.department_ids.length > 0
+            ? p.department_ids
+            : (Array.isArray(p.departments) && p.departments.length > 0
+                ? p.departments.map((d) => d.id)
+                : (p.department_id ? [p.department_id] : []))
+
+          const catIds = Array.isArray(p.category_ids) && p.category_ids.length > 0
+            ? p.category_ids
+            : (Array.isArray(p.categories) && p.categories.length > 0
+                ? p.categories.map((c) => c.id)
+                : (p.category_id ? [p.category_id] : []))
+
           const catName = (typeof p.category === 'object' ? p.category?.name : p.category) || ''
-          const deptId = p.department_id || (p.department?.id) || null
+
           setForm({
             name: p.name,
             description: p.description || '',
-            gender: p.gender,
-            department_id: deptId,
-            category_id: catId,
+            gender: p.gender || 'men',
+            department_id: deptIds[0] || p.department_id || null,
+            department_ids: deptIds,
+            category_id: catIds[0] || p.category_id || null,
+            category_ids: catIds,
             category: catName,
             price: String(p.price),
             stock: String(p.stock),
@@ -115,6 +132,71 @@ export default function ProductForm() {
         .finally(() => setLoading(false))
     }
   }, [id, isEdit])
+
+  const toggleDepartment = (deptId) => {
+    setForm((prev) => {
+      const currentIds = Array.isArray(prev.department_ids) ? [...prev.department_ids] : []
+      const exists = currentIds.includes(deptId)
+      let nextIds
+      if (exists) {
+        if (currentIds.length > 1) {
+          nextIds = currentIds.filter((id) => id !== deptId)
+        } else {
+          nextIds = currentIds
+        }
+      } else {
+        nextIds = [...currentIds, deptId]
+      }
+
+      const activeDepts = departmentsList.filter((d) => nextIds.includes(d.id))
+      const hasMen = activeDepts.some((d) => d.name.includes('رجال'))
+      const hasWomen = activeDepts.some((d) => d.name.includes('نساء'))
+
+      let nextGender = prev.gender
+      if (hasMen && hasWomen) {
+        nextGender = 'unisex'
+      } else if (hasMen) {
+        nextGender = 'men'
+      } else if (hasWomen) {
+        nextGender = 'women'
+      } else if (nextIds.length > 1) {
+        nextGender = 'unisex'
+      }
+
+      return {
+        ...prev,
+        department_ids: nextIds,
+        department_id: nextIds[0] || null,
+        gender: nextGender,
+      }
+    })
+  }
+
+  const toggleCategory = (cat) => {
+    setForm((prev) => {
+      const currentIds = Array.isArray(prev.category_ids) ? [...prev.category_ids] : []
+      const exists = currentIds.includes(cat.id)
+      let nextIds
+      if (exists) {
+        if (currentIds.length > 1) {
+          nextIds = currentIds.filter((id) => id !== cat.id)
+        } else {
+          nextIds = currentIds
+        }
+      } else {
+        nextIds = [...currentIds, cat.id]
+      }
+
+      const firstCat = categoriesList.find((c) => c.id === nextIds[0]) || cat
+
+      return {
+        ...prev,
+        category_ids: nextIds,
+        category_id: nextIds[0] || null,
+        category: firstCat ? firstCat.name : prev.category,
+      }
+    })
+  }
 
   const setField = (k) => (e) => {
     const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value
@@ -185,28 +267,44 @@ export default function ProductForm() {
     }
   }
 
+  const selectedCategoriesList = categoriesList.filter((c) => form.category_ids?.includes(c.id))
+  const isShoeCategory =
+    selectedCategoriesList.some((c) => c.name?.includes('أحذية') || c.name === 'shoes' || c.name === 'الأحذية') ||
+    (form.category && (form.category === 'shoes' || form.category === 'الأحذية' || form.category.includes('أحذية')))
+
+  const isShoeOrBag =
+    isShoeCategory ||
+    selectedCategoriesList.some((c) => c.name?.includes('شنط') || c.name === 'bags' || c.name === 'الشنط') ||
+    (form.category && (form.category === 'bags' || form.category === 'الشنط' || form.category.includes('شنط')))
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setSaving(true)
 
     try {
-      const catStr = form.category || ''
-      const isShoeCategory = catStr === 'shoes' || catStr === 'الأحذية' || catStr.includes('أحذية')
-      const isShoeOrBag = isShoeCategory || catStr === 'bags' || catStr === 'الشنط' || catStr.includes('شنط')
-
       // Calculate stock for shoes from sizes
       let finalStock = parseInt(form.stock, 10) || 0
       if (isShoeCategory && sizes.length > 0) {
         finalStock = sizes.reduce((sum, s) => sum + (parseInt(s.stock, 10) || 0), 0)
       }
 
+      const finalCatIds = form.category_ids && form.category_ids.length > 0
+        ? form.category_ids
+        : (form.category_id ? [form.category_id] : [])
+
+      const finalDeptIds = form.department_ids && form.department_ids.length > 0
+        ? form.department_ids
+        : (form.department_id ? [form.department_id] : [])
+
       const payload = {
         name: form.name.trim(),
         description: form.description ? form.description.trim() : null,
         gender: form.gender,
-        department_id: form.department_id || undefined,
-        category_id: form.category_id || undefined,
+        department_ids: finalDeptIds,
+        department_id: finalDeptIds[0] || undefined,
+        category_ids: finalCatIds,
+        category_id: finalCatIds[0] || undefined,
         category: form.category || undefined,
         price: parseFloat(form.price),
         stock: finalStock,
@@ -286,7 +384,10 @@ export default function ProductForm() {
         {/* Dynamic Department Selection (الفئة الرئيسية) */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="label mb-0">الفئة الرئيسية (القسم)</label>
+            <div>
+              <label className="label mb-0">الفئة الرئيسية / القسم (متعدد الاختيار)</label>
+              <span className="text-[0.7rem] text-ink-muted">يمكن تحديد كل من "رجالي" و"نسائي" ليصبح المنتج للجنسين (Unisex)</span>
+            </div>
             <Link to="/dashboard/departments" className="text-xs font-bold text-ink hover:underline">
               + إدارة الفئات
             </Link>
@@ -294,21 +395,21 @@ export default function ProductForm() {
           {departmentsList.length > 0 ? (
             <div className={`grid gap-2.5 ${departmentsList.length <= 2 ? 'grid-cols-2' : departmentsList.length === 3 ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'}`}>
               {departmentsList.map((dept) => {
-                const isSelected = form.department_id === dept.id || (!form.department_id && ((dept.name.includes('نساء') && form.gender === 'women') || (dept.name.includes('رجال') && form.gender === 'men')))
+                const isSelected = form.department_ids?.includes(dept.id) || form.department_id === dept.id
                 return (
                   <button
                     key={dept.id}
                     type="button"
-                    onClick={() => {
-                      const computedGender = dept.name.includes('نساء') ? 'women' : 'men'
-                      setForm((p) => ({ ...p, department_id: dept.id, gender: computedGender }))
-                    }}
-                    className={`flex items-center justify-center gap-2 rounded-xl border py-3 px-2 text-center text-sm font-extrabold transition ${
+                    onClick={() => toggleDepartment(dept.id)}
+                    className={`flex items-center justify-center gap-2 rounded-xl border py-3 px-3 text-center text-sm font-extrabold transition ${
                       isSelected
                         ? 'border-ink bg-ink text-white shadow-sm ring-2 ring-ink'
                         : 'border-black/10 bg-white text-ink hover:bg-cream-100'
                     }`}
                   >
+                    <span className={`grid h-4 w-4 shrink-0 place-items-center rounded ${isSelected ? 'bg-white text-ink' : 'border border-black/20 bg-transparent'}`}>
+                      {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
+                    </span>
                     <span>{dept.name}</span>
                   </button>
                 )
@@ -318,56 +419,95 @@ export default function ProductForm() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => setForm((p) => ({ ...p, gender: 'men' }))}
-                className={`rounded-xl border py-3.5 text-center text-sm font-extrabold transition ${
-                  form.gender === 'men'
+                onClick={() => {
+                  setForm((p) => {
+                    const isMen = p.gender === 'men'
+                    const isUnisex = p.gender === 'unisex'
+                    let nextGender = 'men'
+                    if (isUnisex) nextGender = 'women'
+                    else if (isMen) nextGender = 'unisex'
+                    else nextGender = 'unisex'
+                    return { ...p, gender: nextGender }
+                  })
+                }}
+                className={`flex items-center justify-center gap-2 rounded-xl border py-3.5 text-center text-sm font-extrabold transition ${
+                  form.gender === 'men' || form.gender === 'unisex'
                     ? 'border-ink bg-ink text-white shadow-sm'
                     : 'border-black/10 bg-white text-ink hover:bg-cream-100'
                 }`}
               >
-                رجال
+                <span className={`grid h-4 w-4 shrink-0 place-items-center rounded ${form.gender === 'men' || form.gender === 'unisex' ? 'bg-white text-ink' : 'border border-black/20 bg-transparent'}`}>
+                  {(form.gender === 'men' || form.gender === 'unisex') && <Check className="h-3 w-3 stroke-[3]" />}
+                </span>
+                <span>رجال</span>
               </button>
               <button
                 type="button"
-                onClick={() => setForm((p) => ({ ...p, gender: 'women' }))}
-                className={`rounded-xl border py-3.5 text-center text-sm font-extrabold transition ${
-                  form.gender === 'women'
+                onClick={() => {
+                  setForm((p) => {
+                    const isWomen = p.gender === 'women'
+                    const isUnisex = p.gender === 'unisex'
+                    let nextGender = 'women'
+                    if (isUnisex) nextGender = 'men'
+                    else if (isWomen) nextGender = 'unisex'
+                    else nextGender = 'unisex'
+                    return { ...p, gender: nextGender }
+                  })
+                }}
+                className={`flex items-center justify-center gap-2 rounded-xl border py-3.5 text-center text-sm font-extrabold transition ${
+                  form.gender === 'women' || form.gender === 'unisex'
                     ? 'border-ink bg-ink text-white shadow-sm'
                     : 'border-black/10 bg-white text-ink hover:bg-cream-100'
                 }`}
               >
-                نساء
+                <span className={`grid h-4 w-4 shrink-0 place-items-center rounded ${form.gender === 'women' || form.gender === 'unisex' ? 'bg-white text-ink' : 'border border-black/20 bg-transparent'}`}>
+                  {(form.gender === 'women' || form.gender === 'unisex') && <Check className="h-3 w-3 stroke-[3]" />}
+                </span>
+                <span>نساء</span>
               </button>
             </div>
+          )}
+          {form.gender === 'unisex' && (
+            <p className="mt-2 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 text-center">
+              ✓ تم تعيين المنتج كـ "للجنسين (Unisex)" وسيعرض في كلا القسمين (رجالي ونسائي) بالمتجر
+            </p>
           )}
         </div>
 
         {/* Dynamic Category Selection */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="label mb-0">نوع الفئة / التصنيف</label>
+            <div>
+              <label className="label mb-0">التصنيفات (متعدد الاختيار)</label>
+              <span className="text-[0.7rem] text-ink-muted">انقر لاختيار تصنيف واحد أو أكثر للمنتج</span>
+            </div>
             <Link to="/dashboard/categories" className="text-xs font-bold text-ink hover:underline">
               + إدارة التصنيفات
             </Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {categoriesList.map((cat) => {
-              const isSelected = form.category_id === cat.id || form.category === cat.name || form.category === cat.name.toLowerCase()
+              const isSelected = form.category_ids?.includes(cat.id) || form.category_id === cat.id || form.category === cat.name || form.category === cat.name.toLowerCase()
               return (
                 <button
                   key={cat.id}
                   type="button"
-                  onClick={() => setForm((p) => ({ ...p, category_id: cat.id, category: cat.name }))}
-                  className={`flex items-center gap-2 rounded-xl border p-2.5 text-start transition ${
+                  onClick={() => toggleCategory(cat)}
+                  className={`flex items-center justify-between gap-2 rounded-xl border p-2.5 text-start transition ${
                     isSelected
                       ? 'border-ink bg-cream text-ink ring-2 ring-ink shadow-sm'
                       : 'border-black/10 bg-white text-ink hover:bg-cream-100'
                   }`}
                 >
-                  {cat.image_url && (
-                    <img src={cat.image_url} alt="" className="h-8 w-8 rounded-lg object-cover mix-blend-multiply shrink-0" />
-                  )}
-                  <span className="text-xs font-extrabold truncate">{cat.name}</span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    {cat.image_url && (
+                      <img src={cat.image_url} alt="" className="h-8 w-8 rounded-lg object-cover mix-blend-multiply shrink-0" />
+                    )}
+                    <span className="text-xs font-extrabold truncate">{cat.name}</span>
+                  </div>
+                  <span className={`grid h-4 w-4 shrink-0 place-items-center rounded ${isSelected ? 'bg-ink text-white' : 'border border-black/20 bg-transparent'}`}>
+                    {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
+                  </span>
                 </button>
               )
             })}
@@ -375,7 +515,7 @@ export default function ProductForm() {
         </div>
 
         {/* DYNAMIC SECTION 1: Shoe Sizes & Inventory (Range 30 to 50) */}
-        {(form.category === 'shoes' || form.category === 'الأحذية' || (form.category && form.category.includes('أحذية'))) && (
+        {isShoeCategory && (
           <div className="rounded-2xl border border-black/10 bg-cream-50/70 p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -452,7 +592,7 @@ export default function ProductForm() {
         )}
 
         {/* DYNAMIC SECTION 2: Available Colors (for Shoes and Bags) */}
-        {(form.category === 'shoes' || form.category === 'bags' || form.category === 'الأحذية' || form.category === 'الشنط' || (form.category && (form.category.includes('أحذية') || form.category.includes('شنط')))) && (
+        {isShoeOrBag && (
           <div className="rounded-2xl border border-black/10 bg-cream-50/70 p-5 space-y-4">
             <div>
               <h3 className="text-sm font-extrabold text-ink">الألوان المتاحة للمنتج</h3>

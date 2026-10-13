@@ -34,7 +34,7 @@ export const getCategoryName = (c) => {
   return CATEGORY_LABELS[c] || c
 }
 
-export const GENDER_LABELS = { men: 'رجال', women: 'نساء' }
+export const GENDER_LABELS = { men: 'رجال', women: 'نساء', unisex: 'للجنسين (رجالي ونسائي)' }
 export const ROLE_LABELS = { manager: 'مدير', admin: 'مشرف', customer: 'عميل' }
 
 export const ORDER_STATUS = {

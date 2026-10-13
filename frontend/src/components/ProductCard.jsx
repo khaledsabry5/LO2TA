@@ -57,7 +57,10 @@ export default function ProductCard({ product, index = 0 }) {
       {/* Info & balanced price container */}
       <div className="product-card-info">
         <p className="product-card-meta">
-          {CATEGORY_SINGULAR[product.category]} · {GENDER_LABELS[product.gender]}
+          {Array.isArray(product.categories) && product.categories.length > 0
+            ? product.categories.map((c) => CATEGORY_SINGULAR[c.name] || c.name).join(' · ')
+            : (CATEGORY_SINGULAR[product.category] || product.category || '')}
+          {product.gender && ` · ${GENDER_LABELS[product.gender] || (product.gender === 'unisex' ? 'للجنسين' : product.gender)}`}
         </p>
 
         <h3 className="product-card-title">
