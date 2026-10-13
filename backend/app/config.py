@@ -23,10 +23,8 @@ class Settings(BaseSettings):
     MAX_IMAGE_MB: int = 8
     MAX_VIDEO_MB: int = 50
 
-    SMTP_HOST: str = "smtp.gmail.com"
-    SMTP_PORT: int = 587
-    SMTP_USER: str = "lo2tastore2026@gmail.com"
-    SMTP_PASSWORD: str = "lansccvbeaeuxogf"
+    # Brevo HTTP API Configuration
+    BREVO_API_KEY: str = ""
     SMTP_FROM_EMAIL: str = "lo2tastore2026@gmail.com"
     SMTP_FROM_NAME: str = "Lo2ta Accessories"
 

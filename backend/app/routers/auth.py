@@ -26,7 +26,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def request_otp(data: RequestOTPIn, db: DB):
     """Generates a 6-digit OTP for the given email, saves it with a 10-minute expiry,
 
-    and sends it to the user's email via Gmail SMTP.
+    and sends it to the user's email via Brevo HTTP API.
     """
     clean_email = data.email.strip().lower()
 
@@ -60,7 +60,7 @@ async def request_otp(data: RequestOTPIn, db: DB):
     db.add(otp_record)
     db.commit()
 
-    # Send the OTP via Gmail SMTP
+    # Send the OTP via Brevo HTTP API
     try:
         await send_otp_email(user.email, otp_code)
     except Exception as e:

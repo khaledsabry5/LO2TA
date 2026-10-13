@@ -1,19 +1,16 @@
-import asyncio
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 import logging
-import smtplib
+import httpx
 
 from .config import settings
 
 logger = logging.getLogger("lo2ta.mailer")
 
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
-def _send_otp_email_sync(to_email: str, otp_code: str) -> None:
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"رمز تسجيل الدخول: {otp_code} | متجر لقطة"
-    msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-    msg["To"] = to_email
+
+def build_otp_bodies(otp_code: str) -> tuple[str, str, str]:
+    """Generates subject, plain text body, and responsive luxury HTML body for OTP email."""
+    subject = f"رمز تسجيل الدخول: {otp_code} | متجر لقطة"
 
     text_body = f"""مرحباً بك في متجر لقطة (Lo2ta Store).
 
@@ -76,17 +73,47 @@ def _send_otp_email_sync(to_email: str, otp_code: str) -> None:
 </body>
 </html>"""
 
-    msg.attach(MIMEText(text_body, "plain", "utf-8"))
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
-
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=20) as server:
-        server.starttls()
-        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-        server.send_message(msg)
-
-    logger.info(f"OTP email sent successfully to {to_email}")
+    return subject, text_body, html_body
 
 
 async def send_otp_email(to_email: str, otp_code: str) -> None:
-    """Sends OTP email asynchronously using asyncio.to_thread."""
-    await asyncio.to_thread(_send_otp_email_sync, to_email, otp_code)
+    """Sends OTP email asynchronously using Brevo (Sendinblue) HTTP API.
+    Bypasses SMTP port blocking on clouds like Railway.
+    """
+    subject, text_body, html_body = build_otp_bodies(otp_code)
+
+    if not settings.BREVO_API_KEY:
+        logger.warning(
+            f"[DEV] BREVO_API_KEY is not set. OTP for {to_email}: {otp_code} (logged for development)."
+        )
+        return
+
+    headers = {
+        "api-key": settings.BREVO_API_KEY,
+        "accept": "application/json",
+        "content-type": "application/json",
+    }
+
+    payload = {
+        "sender": {
+            "name": settings.SMTP_FROM_NAME or "Lo2ta Accessories",
+            "email": settings.SMTP_FROM_EMAIL or "lo2tastore2026@gmail.com",
+        },
+        "to": [
+            {
+                "email": to_email,
+            }
+        ],
+        "subject": subject,
+        "htmlContent": html_body,
+        "textContent": text_body,
+    }
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        response = await client.post(BREVO_API_URL, headers=headers, json=payload)
+        if response.status_code not in (200, 201, 202):
+            error_msg = f"Brevo API error: {response.status_code} - {response.text}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+    logger.info(f"OTP email sent successfully via Brevo HTTP API to {to_email}")
