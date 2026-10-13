@@ -1,4 +1,4 @@
-"""Category CRUD router for Lo2ta Accessories Store."""
+"""Category CRUD router for YSN Accessories Store."""
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload

@@ -7,7 +7,7 @@ export default function Footer() {
     <footer className="footer-wrapper">
       <div className="container-x footer-grid">
         <div className="footer-brand-col">
-          <p dir="ltr" className="footer-logo">Lo2ta</p>
+          <p dir="ltr" className="footer-logo">YSN</p>
           <p className="footer-brand-desc">
             إكسسوارات مختارة بعناية للرجال والنساء – أحذية، شنط، وساعات بجودة عالية وأسعار مميزة.
           </p>
@@ -61,7 +61,7 @@ export default function Footer() {
       </div>
 
       <div className="footer-bottom-bar">
-        © {new Date().getFullYear()} Lo2ta Accessories Store. جميع الحقوق محفوظة.
+        © {new Date().getFullYear()} YSN Accessories Store. جميع الحقوق محفوظة.
       </div>
     </footer>
   )

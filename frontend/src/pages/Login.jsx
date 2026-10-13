@@ -142,7 +142,7 @@ export default function Login() {
                 required
                 autoFocus
                 dir="ltr"
-                placeholder="example@lo2ta.com"
+                placeholder="example@ysn.com"
                 className="login-email-input"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

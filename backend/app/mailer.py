@@ -10,9 +10,9 @@ BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
 def build_otp_bodies(otp_code: str) -> tuple[str, str, str]:
     """Generates subject, plain text body, and responsive luxury HTML body for OTP email."""
-    subject = f"رمز تسجيل الدخول: {otp_code} | متجر لقطة"
+    subject = f"رمز تسجيل الدخول: {otp_code} | متجر YSN"
 
-    text_body = f"""مرحباً بك في متجر لقطة (Lo2ta Store).
+    text_body = f"""مرحباً بك في متجر YSN (YSN Store).
 
 رمز تسجيل الدخول لمرة واحدة (OTP) الخاص بك هو:
 {otp_code}
@@ -32,8 +32,8 @@ def build_otp_bodies(otp_code: str) -> tuple[str, str, str]:
   <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 500px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e7e5e4; box-shadow: 0 4px 16px rgba(0,0,0,0.04); overflow: hidden;">
     <tr>
       <td style="padding: 32px 28px; text-align: center;">
-        <div style="font-size: 24px; font-weight: 900; letter-spacing: 2px; color: #0a0a0a; margin-bottom: 8px;">
-          LO2TA
+        <div style="font-size: 26px; font-weight: 900; letter-spacing: 3px; color: #0a0a0a; margin-bottom: 8px;">
+          YSN
         </div>
         <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 3px; color: #a8a29e; margin-bottom: 24px;">
           ACCESSORIES &amp; LUXURY
@@ -45,7 +45,7 @@ def build_otp_bodies(otp_code: str) -> tuple[str, str, str]:
           رمز التحقق لتسجيل الدخول
         </h2>
         <p style="font-size: 14px; color: #57534e; line-height: 1.6; margin: 0 0 24px 0;">
-          استخدم الرمز التالي لمرة واحدة للدخول الآمن إلى حسابك في متجر لقطة:
+          استخدم الرمز التالي لمرة واحدة للدخول الآمن إلى حسابك في متجر YSN:
         </p>
 
         <div style="background-color: #fdfbf7; border: 2px dashed #faedcd; border-radius: 14px; padding: 20px 16px; margin-bottom: 24px;">
@@ -65,7 +65,7 @@ def build_otp_bodies(otp_code: str) -> tuple[str, str, str]:
         <p style="font-size: 11px; color: #a8a29e; margin: 0; line-height: 1.4;">
           إذا لم تقم بطلب هذا الرمز، يمكنك تجاهل هذه الرسالة.
           <br>
-          متجر لقطة للإكسسوارات &copy; 2026. جميع الحقوق محفوظة.
+          متجر YSN للإكسسوارات &copy; 2026. جميع الحقوق محفوظة.
         </p>
       </td>
     </tr>
@@ -96,7 +96,7 @@ async def send_otp_email(to_email: str, otp_code: str) -> None:
 
     payload = {
         "sender": {
-            "name": settings.SMTP_FROM_NAME or "Lo2ta Accessories",
+            "name": settings.SMTP_FROM_NAME or "YSN Accessories",
             "email": settings.SMTP_FROM_EMAIL or "lo2tastore2026@gmail.com",
         },
         "to": [

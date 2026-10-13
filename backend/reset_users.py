@@ -1,4 +1,4 @@
-"""Reset Users Script for Lo2ta Accessories Store.
+"""Reset Users Script for YSN Accessories Store.
 
 Deletes ALL existing users and seeds exactly ONE initial user:
 email: lo2tastore2026@gmail.com

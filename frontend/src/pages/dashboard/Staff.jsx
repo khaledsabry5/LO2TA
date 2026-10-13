@@ -293,7 +293,7 @@ export default function Staff() {
                   type="email"
                   dir="ltr"
                   required
-                  placeholder="admin@lo2ta.com"
+                  placeholder="admin@ysn.com"
                   value={form.email}
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   className="input text-end"

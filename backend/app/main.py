@@ -102,7 +102,12 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title=settings.APP_NAME, version="1.0.0", lifespan=lifespan)
+app = FastAPI(
+    title=settings.APP_NAME,
+    description="YSN Accessories Store API",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,

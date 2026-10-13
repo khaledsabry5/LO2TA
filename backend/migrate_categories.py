@@ -1,4 +1,4 @@
-"""Migration script to transition Categories from Enum to dynamic table in Lo2ta store."""
+"""Migration script to transition Categories from Enum to dynamic table in YSN store."""
 import os
 import sqlite3
 from pathlib import Path

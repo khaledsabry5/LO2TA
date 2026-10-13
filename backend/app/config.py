@@ -10,7 +10,7 @@ DEFAULT_DB_URL = f"sqlite:///{BASE_DIR.as_posix()}/lo2ta.db"
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    APP_NAME: str = "Lo2ta Accessories Store API"
+    APP_NAME: str = "YSN Accessories Store API"
     DATABASE_URL: str = DEFAULT_DB_URL
 
     JWT_SECRET: str = "dev-only-insecure-secret-change-me"
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # Brevo HTTP API Configuration
     BREVO_API_KEY: str = ""
     SMTP_FROM_EMAIL: str = "lo2tastore2026@gmail.com"
-    SMTP_FROM_NAME: str = "Lo2ta Accessories"
+    SMTP_FROM_NAME: str = "YSN Accessories"
 
     FIRST_MANAGER_EMAIL: str = "lo2tastore2026@gmail.com"
     FIRST_MANAGER_PASSWORD: str = ""

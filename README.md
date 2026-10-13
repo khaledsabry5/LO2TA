@@ -1,4 +1,4 @@
-# Lo2ta Accessories Store — متجر لقطة للإكسسوارات
+# YSN Accessories Store — متجر YSN للإكسسوارات
 
 Full-stack e-commerce store (Arabic / RTL / Mobile-first).
 
@@ -37,7 +37,7 @@ uvicorn app.main:app --reload
 ```
 API docs: http://localhost:8000/docs
 
-Default seeded manager (change immediately): `manager@lo2ta.com` / `ChangeMe123!`
+Default seeded manager (change immediately): `manager@ysn.com` / `ChangeMe123!`
 
 ### 3. Frontend
 ```bash

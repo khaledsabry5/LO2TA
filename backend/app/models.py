@@ -1,4 +1,4 @@
-"""SQLAlchemy 2.0 ORM models for Lo2ta Accessories Store (PostgreSQL)."""
+"""SQLAlchemy 2.0 ORM models for YSN Accessories Store (PostgreSQL)."""
 from __future__ import annotations
 
 import enum

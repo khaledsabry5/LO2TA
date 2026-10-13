@@ -83,7 +83,7 @@ export default function MyOrders() {
       <div className="customer-orders-header">
         <h1 className="customer-orders-title">طلباتي</h1>
         <p className="customer-orders-subtitle">
-          متابعة وتتبع مسار طلباتك السابقة والحالية في متجر لقطة
+          متابعة وتتبع مسار طلباتك السابقة والحالية في متجر YSN
         </p>
       </div>
 

@@ -51,7 +51,7 @@ export default function ProductDetail() {
         const p = await api.product(id)
         if (mounted && p) {
           setProduct(p)
-          document.title = `${p.name} | لقطة للإكسسوارات`
+          document.title = `${p.name} | YSN للإكسسوارات`
         }
       } catch (e) {
         if (mounted) {

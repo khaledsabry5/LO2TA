@@ -1,1 +1,1 @@
-"""Lo2ta Accessories Store backend."""
+"""YSN Accessories Store backend."""
