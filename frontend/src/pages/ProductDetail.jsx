@@ -1,11 +1,26 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Check, ChevronRight, Minus, Plus, ShoppingBag, Truck } from 'lucide-react'
+import { AlertCircle, Check, ChevronRight, Minus, Plus, ShoppingBag, Truck } from 'lucide-react'
 import PriceTag from '../components/PriceTag'
 import { PageLoader, EmptyState } from '../components/ui'
 import { api } from '../lib/api'
-import { CATEGORY_LABELS, CATEGORY_SINGULAR, GENDER_LABELS } from '../lib/format'
+import { CATEGORY_LABELS, CATEGORY_SINGULAR, GENDER_LABELS, getCategoryName } from '../lib/format'
 import { useCart } from '../context/CartContext'
+import WhatsAppIcon from '../components/icons/WhatsAppIcon'
+import './ProductDetail.css'
+
+const getColorClass = (name) => {
+  const n = (name || '').toLowerCase()
+  if (n.includes('أسود') || n.includes('black')) return 'color-swatch-black'
+  if (n.includes('بني') || n.includes('brown')) return 'color-swatch-brown'
+  if (n.includes('بيج') || n.includes('beige')) return 'color-swatch-beige'
+  if (n.includes('أبيض') || n.includes('white')) return 'color-swatch-white'
+  if (n.includes('كحلي') || n.includes('أزرق') || n.includes('navy') || n.includes('blue')) return 'color-swatch-navy'
+  if (n.includes('أحمر') || n.includes('red')) return 'color-swatch-red'
+  if (n.includes('رمادي') || n.includes('رصاصي') || n.includes('gray')) return 'color-swatch-gray'
+  return 'color-swatch-default'
+}
+
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -20,6 +35,7 @@ export default function ProductDetail() {
   // Product variant states
   const [selectedSize, setSelectedSize] = useState(null)
   const [selectedColor, setSelectedColor] = useState(null)
+  const [validationAttempted, setValidationAttempted] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -28,6 +44,7 @@ export default function ProductDetail() {
     setActive(0)
     setSelectedSize(null)
     setSelectedColor(null)
+    setValidationAttempted(false)
 
     async function fetchProduct() {
       try {
@@ -63,26 +80,84 @@ export default function ProductDetail() {
       : [{ id: 0, url: '', media_type: 'image' }]
   const current = media[active]
 
-  // Variant rules
-  const isShoes = product.category === 'shoes'
-  const isBags = product.category === 'bags'
-  const sizes = Array.isArray(product.sizes) ? product.sizes : []
-  const colors = Array.isArray(product.colors) ? product.colors : []
+  // Dynamic category detection (supporting category object, ID, or legacy string)
+  const categoryName = typeof product.category === 'object' ? (product.category?.name || '') : String(product.category || '')
+  const categoryId = product.category_id || product.category?.id
 
-  const hasSizes = isShoes && sizes.length > 0
-  const hasColors = (isShoes || isBags) && colors.length > 0
+  const isShoes = categoryId === 1 ||
+    categoryName === 'الأحذية' ||
+    categoryName.includes('أحذية') ||
+    categoryName.toLowerCase() === 'shoes' ||
+    categoryName.toLowerCase().includes('shoe')
 
-  const sizeMissing = hasSizes && !selectedSize
-  const colorMissing = hasColors && !selectedColor
-  const canAddToCart = product.in_stock && !sizeMissing && !colorMissing
+  const isBags = categoryId === 2 ||
+    categoryName === 'الشنط' ||
+    categoryName.includes('شنط') ||
+    categoryName.toLowerCase() === 'bags' ||
+    categoryName.toLowerCase().includes('bag')
+
+  // Requirement:
+  // - Shoes category: display options for both Size and Color
+  // - Bags category: display options for Color only
+  const needsSize = isShoes
+  const needsColor = isShoes || isBags
+
+  const defaultShoeSizes = [
+    { size: 39, stock: 5 },
+    { size: 40, stock: 8 },
+    { size: 41, stock: 10 },
+    { size: 42, stock: 12 },
+    { size: 43, stock: 8 },
+    { size: 44, stock: 5 },
+  ]
+  const defaultColors = [
+    { name: 'أسود', code: '#111827' },
+    { name: 'بني', code: '#78350f' },
+    { name: 'بيج', code: '#d4b996' },
+  ]
+
+  const sizes = isShoes
+    ? (Array.isArray(product.sizes) && product.sizes.length > 0 ? product.sizes : defaultShoeSizes)
+    : []
+
+  const colors = (isShoes || isBags)
+    ? (Array.isArray(product.colors) && product.colors.length > 0 ? product.colors : defaultColors)
+    : []
+
+  const hasSizes = needsSize && sizes.length > 0
+  const hasColors = needsColor && colors.length > 0
+
+  const sizeMissing = needsSize && !selectedSize
+  const colorMissing = needsColor && !selectedColor
+  const inStock = Boolean(product.in_stock || (typeof product.stock === 'number' && product.stock > 0))
+  const canAddToCart = inStock && !sizeMissing && !colorMissing
+
+  const handleSelectSize = (sz) => {
+    setSelectedSize(sz)
+    setValidationAttempted(false)
+  }
+
+  const handleSelectColor = (colName) => {
+    setSelectedColor(colName)
+    setValidationAttempted(false)
+  }
 
   const handleAdd = (buyNow) => {
-    if (!canAddToCart) return
-    add(product, qty, { size: selectedSize, color: selectedColor })
+    if (!canAddToCart) {
+      setValidationAttempted(true)
+      return
+    }
+    setValidationAttempted(false)
+    add(product, qty, {
+      size: selectedSize ? Number(selectedSize) : null,
+      color: selectedColor || null,
+    })
     if (buyNow) return navigate('/cart')
     setAdded(true)
     setTimeout(() => setAdded(false), 1500)
   }
+
+  const whatsappUrl = `https://wa.me/201035707186?text=${encodeURIComponent('مرحباً، أريد الاستفسار عن المنتج: ' + (product?.name || ''))}`
 
   return (
     <div className="container-x py-4 sm:py-10">
@@ -91,8 +166,8 @@ export default function ProductDetail() {
           الرئيسية
         </Link>
         <ChevronRight className="h-3 w-3 rotate-180" />
-        <Link to={`/shop?category=${product.category}`} className="hover:text-ink">
-          {CATEGORY_LABELS[product.category]}
+        <Link to={`/category/${product.category_id || product.category?.id || product.category}`} className="hover:text-ink">
+          {getCategoryName(product.category)}
         </Link>
         <ChevronRight className="h-3 w-3 rotate-180" />
         <span className="line-clamp-1 text-ink">{product.name}</span>
@@ -142,7 +217,7 @@ export default function ProductDetail() {
         {/* Product Details & Variant Selectors */}
         <div className="flex flex-col">
           <div className="flex gap-2">
-            <span className="chip bg-cream">{CATEGORY_SINGULAR[product.category]}</span>
+            <span className="chip bg-cream">{getCategoryName(product.category)}</span>
             <span className="chip bg-cream-100">{GENDER_LABELS[product.gender]}</span>
           </div>
           <h1 className="mt-3 text-2xl font-extrabold leading-tight sm:text-4xl">{product.name}</h1>
@@ -153,41 +228,35 @@ export default function ProductDetail() {
 
           {/* 1. Shoe Sizes Selector (Required for Shoes) */}
           {hasSizes && (
-            <div className="mt-6 rounded-2xl border border-black/10 bg-cream-50/50 p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-extrabold text-ink">
-                  اختر المقاس (مطلوب):
+            <div className={`variant-selector-box ${validationAttempted && sizeMissing ? 'has-error' : ''}`}>
+              <div className="variant-header">
+                <div className="variant-title-group">
+                  <span className="variant-label">اختر المقاس (مطلوب):</span>
                   {selectedSize && (
-                    <span className="ms-2 rounded-md bg-ink px-2 py-0.5 text-xs font-bold text-white">
+                    <span className="variant-selected-badge">
                       مقاس {selectedSize}
                     </span>
                   )}
-                </span>
+                </div>
                 {sizeMissing && (
-                  <span className="text-xs font-bold text-sale">يرجى تحديد المقاس</span>
+                  <span className="variant-warning-badge">يرجى تحديد المقاس</span>
                 )}
               </div>
-              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+              <div className="sizes-grid">
                 {sizes.map((s) => {
-                  const outOfStock = s.stock <= 0
+                  const outOfStock = typeof s.stock === 'number' && s.stock <= 0
                   const isSelected = selectedSize === s.size
                   return (
                     <button
                       key={s.size}
                       type="button"
                       disabled={outOfStock}
-                      onClick={() => setSelectedSize(s.size)}
-                      className={`flex flex-col items-center justify-center rounded-xl py-2.5 px-2 border text-sm font-extrabold transition ${
-                        outOfStock
-                          ? 'border-black/5 bg-gray-100 text-ink-muted opacity-40 cursor-not-allowed line-through'
-                          : isSelected
-                          ? 'border-ink bg-ink text-white ring-2 ring-ink shadow-sm'
-                          : 'border-black/15 bg-white text-ink hover:bg-cream-100 hover:border-ink'
-                      }`}
+                      onClick={() => handleSelectSize(s.size)}
+                      className={`size-option-btn ${isSelected ? 'selected' : ''}`}
                     >
                       <span>{s.size}</span>
                       {!outOfStock && s.stock <= 3 && (
-                        <span className="text-[0.62rem] font-bold text-sale">متبقي {s.stock}</span>
+                        <span className="size-stock-badge">متبقي {s.stock}</span>
                       )}
                     </button>
                   )
@@ -198,35 +267,32 @@ export default function ProductDetail() {
 
           {/* 2. Colors Selector (Required for Shoes & Bags) */}
           {hasColors && (
-            <div className="mt-4 rounded-2xl border border-black/10 bg-cream-50/50 p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-extrabold text-ink">
-                  اختر اللون (مطلوب):
+            <div className={`variant-selector-box ${validationAttempted && colorMissing ? 'has-error' : ''}`}>
+              <div className="variant-header">
+                <div className="variant-title-group">
+                  <span className="variant-label">اختر اللون (مطلوب):</span>
                   {selectedColor && (
-                    <span className="ms-2 rounded-md bg-ink px-2 py-0.5 text-xs font-bold text-white">
+                    <span className="variant-selected-badge">
                       {selectedColor}
                     </span>
                   )}
-                </span>
+                </div>
                 {colorMissing && (
-                  <span className="text-xs font-bold text-sale">يرجى تحديد اللون</span>
+                  <span className="variant-warning-badge">يرجى تحديد اللون</span>
                 )}
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="colors-list">
                 {colors.map((c) => {
                   const isSelected = selectedColor === c.name
+                  const colorClass = getColorClass(c.name)
                   return (
                     <button
                       key={c.name}
                       type="button"
-                      onClick={() => setSelectedColor(c.name)}
-                      className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-extrabold transition ${
-                        isSelected
-                          ? 'border-ink bg-ink text-white ring-2 ring-ink shadow-sm'
-                          : 'border-black/15 bg-white text-ink hover:bg-cream-100 hover:border-ink'
-                      }`}
+                      onClick={() => handleSelectColor(c.name)}
+                      className={`color-option-btn ${isSelected ? 'selected' : ''}`}
                     >
-                      <span className="h-3 w-3 rounded-full border border-black/20 bg-cream" />
+                      <span className={`color-swatch-circle ${colorClass}`} />
                       <span>{c.name}</span>
                     </button>
                   )
@@ -240,6 +306,7 @@ export default function ProductDetail() {
             <span className="text-sm font-bold">الكمية</span>
             <div className="flex items-center rounded-xl ring-1 ring-black/10">
               <button
+                type="button"
                 onClick={() => setQty((q) => Math.min(q + 1, 50))}
                 className="grid h-11 w-11 place-items-center hover:bg-cream-100"
                 aria-label="زيادة"
@@ -248,6 +315,7 @@ export default function ProductDetail() {
               </button>
               <span className="w-10 text-center font-bold">{qty}</span>
               <button
+                type="button"
                 onClick={() => setQty((q) => Math.max(q - 1, 1))}
                 className="grid h-11 w-11 place-items-center hover:bg-cream-100"
                 aria-label="تقليل"
@@ -255,63 +323,71 @@ export default function ProductDetail() {
                 <Minus className="h-4 w-4" />
               </button>
             </div>
-            <span className={`text-sm font-bold ${product.in_stock ? 'text-emerald-600' : 'text-sale'}`}>
-              {product.in_stock ? 'متوفر' : 'نفدت الكمية'}
+            <span className={`text-sm font-bold ${inStock ? 'text-emerald-600' : 'text-sale'}`}>
+              {inStock ? 'متوفر' : 'نفدت الكمية'}
             </span>
           </div>
 
-          {/* Validation helper messages if buttons are disabled */}
+          {/* Validation helper messages if variants are missing */}
           {(sizeMissing || colorMissing) && (
-            <div className="mt-3 text-xs font-bold text-sale">
-              {sizeMissing && colorMissing
-                ? '⚠️ يرجى تحديد المقاس واللون المطلوبين لتفعيل زر الإضافة إلى السلة'
-                : sizeMissing
-                ? '⚠️ يرجى تحديد المقاس المطلوب لتفعيل زر الإضافة إلى السلة'
-                : '⚠️ يرجى تحديد اللون المطلوب لتفعيل زر الإضافة إلى السلة'}
+            <div className="variant-validation-message">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>
+                {sizeMissing && colorMissing
+                  ? 'يرجى تحديد المقاس واللون المطلوبين لتفعيل خيار الإضافة إلى السلة'
+                  : sizeMissing
+                  ? 'يرجى تحديد المقاس المطلوب لتفعيل خيار الإضافة إلى السلة'
+                  : 'يرجى تحديد اللون المطلوب لتفعيل خيار الإضافة إلى السلة'}
+              </span>
             </div>
           )}
 
-          {/* Sticky action bar */}
-          <div className="fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t border-black/5 bg-white/95 p-3 pb-safe backdrop-blur lg:static lg:mt-6 lg:border-0 lg:bg-transparent lg:p-0">
-            <button
-              id="add-to-cart"
-              disabled={!canAddToCart}
-              onClick={() => handleAdd(false)}
-              className={`flex-1 transition ${
-                !canAddToCart
-                  ? 'btn bg-gray-200 text-gray-400 cursor-not-allowed opacity-60'
-                  : added
-                  ? 'btn bg-azure text-white'
-                  : 'btn-cream'
-              }`}
-            >
-              {added ? (
-                <>
-                  <Check className="h-4 w-4" /> تمت الإضافة
-                </>
-              ) : (
-                'أضف إلى السلة'
-              )}
-            </button>
-            <button
-              id="buy-now"
-              disabled={!canAddToCart}
-              onClick={() => handleAdd(true)}
-              className={`flex-1 transition ${
-                !canAddToCart
-                  ? 'btn bg-gray-300 text-gray-400 cursor-not-allowed opacity-60'
-                  : 'btn-dark'
-              }`}
-            >
-              اشترِ الآن
-            </button>
+          {/* Unified Action Buttons Container */}
+          <div className="product-actions-container">
+            <div className="whatsapp-button-container">
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="whatsapp-button"
+              >
+                <WhatsAppIcon className="whatsapp-icon" />
+                <span> لشراء   او الاستفسار عن المنتج عبر الواتساب</span>
+              </a>
+            </div>
+
+            <div className="product-cart-buttons">
+              <button
+                id="add-to-cart"
+                type="button"
+                disabled={!canAddToCart}
+                onClick={() => handleAdd(false)}
+                className={`btn-add-cart ${added ? 'added-success' : ''}`}
+              >
+                {added ? (
+                  <>
+                    <Check className="h-4 w-4" /> تمت الإضافة للسلة
+                  </>
+                ) : (
+                  'أضف إلى السلة'
+                )}
+              </button>
+              <button
+                id="buy-now"
+                type="button"
+                disabled={!canAddToCart}
+                onClick={() => handleAdd(true)}
+                className="btn-buy-now"
+              >
+                اشترِ الآن
+              </button>
+            </div>
           </div>
 
           <div className="mt-6 flex items-center gap-3 rounded-2xl bg-cream-50 p-4 text-sm ring-1 ring-cream">
             <Truck className="h-5 w-5 shrink-0" />
             <span>توصيل سريع لجميع محافظات مصر · الدفع عند الاستلام (ج.م)</span>
           </div>
-          <div className="h-20 lg:hidden" />
         </div>
       </div>
     </div>

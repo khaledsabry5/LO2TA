@@ -1,8 +1,4 @@
-"""Create tables, the first Manager/Admin accounts, and demo products with variants.
-
-    python -m app.seed            # idempotent
-    python -m app.seed --no-demo  # only tables + staff accounts
-"""
+"""Create tables, default categories, Manager/Admin accounts, and demo products with variants."""
 import sys
 from decimal import Decimal
 
@@ -10,96 +6,158 @@ from sqlalchemy import func, select
 
 from .config import settings
 from .database import Base, SessionLocal, engine
-from .models import Category, Gender, MediaType, Product, ProductColor, ProductMedia, ProductSize, User, UserRole
+from .models import Category, Department, Gender, MediaType, Product, ProductColor, ProductMedia, ProductSize, User, UserRole
 from .security import hash_password
 
 IMG = "/images/products"
 
-DEMO_PRODUCTS = [
-    # name, description, category, gender, price, discount, stock, image
-    ("حذاء رياضي عصري", "حذاء رياضي خفيف بنعل مريح ومثالي للاستخدام اليومي والرياضة", Category.SHOES, Gender.MEN, 420, 0, 45, "sneaker.jpg"),
-    ("خفية كتد أنيقة", "خفية مريحة بتصميم عصري وألوان جذابة", Category.SHOES, Gender.MEN, 750, 0, 35, "sneaker.jpg"),
-    ("خفية جلد أنيقة", "خفية من الجلد الطبيعي الفاخر مبطنة بالكامل لراحة فائقة", Category.SHOES, Gender.WOMEN, 750, 20, 40, "handbag.jpg"),
-    ("محفظة جلد طبيعية", "محفظة جلدية متعددة الجيوب للبطاقات والعملات النقدية", Category.BAGS, Gender.MEN, 290, 0, 30, "black-bag.jpg"),
-    ("حقيبة يد جلد أنيقة", "حقيبة يد نسائية من الجلد الفاخر مع حزام كتف قابل للتعديل", Category.BAGS, Gender.WOMEN, 750, 20, 25, "handbag.jpg"),
-    ("حقيبة سوداء فاخرة", "حقيبة كلاسيكية راقية باللون الأسود الملكي بمقبض علوي", Category.BAGS, Gender.WOMEN, 1200, 10, 20, "black-bag.jpg"),
-    ("ساعة ستانلس كلاسيك", "ساعة يد بسوار ستانلس ستيل مقاوم للصدأ ومقاومة للماء", Category.WATCHES, Gender.MEN, 1450, 0, 10, "steel-watch.jpg"),
-    ("ساعة جلد بني", "ساعة أنيقة بحزام من الجلد البني الطبيعي وميناء أبيض كلاسيكي", Category.WATCHES, Gender.MEN, 990, 25, 15, "leather-watch.jpg"),
-    ("ساعة نسائية ناعمة", "ساعة يد أنثوية رقيقة بإطار رفيع ولمسة ذهبية أنيقة", Category.WATCHES, Gender.WOMEN, 870, 0, 20, "leather-watch.jpg"),
-    ("ساعة كرونوغراف رياضية", "ساعة كرونوغراف عالية الدقة بتصميم رياضي متين", Category.WATCHES, Gender.MEN, 2100, 30, 8, "steel-watch.jpg"),
-    ("حذاء كلاسيك جلد أسود", "حذاء رسمي فخم للبدلات والمناسبات الرسمية", Category.SHOES, Gender.MEN, 890, 15, 30, "sneaker.jpg"),
-    ("كعب عالي بيج أنيق", "حذاء كعب عالي بلون بيج ناعم يكمل إطلالتك الساحرة", Category.SHOES, Gender.WOMEN, 650, 20, 25, "heels.jpg"),
-    ("حذاء سهرة نسائي لامع", "تصميم راقٍ ببريق لافت للحفلات والسهرات الخاصة", Category.SHOES, Gender.WOMEN, 980, 0, 20, "heels.jpg"),
-    ("حقيبة كتف يومية راقية", "حقيبة كروس بدي واسعة وعملية للمشاوير اليومية", Category.BAGS, Gender.WOMEN, 540, 0, 22, "handbag.jpg"),
-    ("حقيبة لابتوب جلدية رجالية", "حقيبة عمل أنيقة تتسع للابتوب 15 بوصة والمستندات", Category.BAGS, Gender.MEN, 1350, 0, 15, "black-bag.jpg"),
-    ("ساعة يد ذهبية فاخرة", "ساعة كوارتز بميناء ماسي وسوار مطلي بالذهب عيار 18", Category.WATCHES, Gender.WOMEN, 1680, 15, 9, "steel-watch.jpg"),
-    ("حذاء لوفر إيطالي كلاسيك", "حذاء لوفر بدون أربطة مصنوع يدوياً من الجلد المدبوغ", Category.SHOES, Gender.MEN, 820, 10, 32, "sneaker.jpg"),
-    ("حقيبة يد صغيرة للمناسبات", "كلتش مسائي أنيق مناسب للسهرات والحفلات", Category.BAGS, Gender.WOMEN, 490, 0, 25, "handbag.jpg"),
-    ("ساعة يد كاجوال كلاسيك", "ساعة عصرية خفيفة الوزن تناسب الإطلالات اليومية والعمل", Category.WATCHES, Gender.MEN, 780, 0, 14, "leather-watch.jpg"),
-    ("محفظة كروت جلدية مضغوطة", "محفظة بطاقات صغيرة نحيفة مزودة بحماية RFID", Category.BAGS, Gender.MEN, 190, 0, 40, "black-bag.jpg"),
+DEFAULT_DEPARTMENTS = [
+    ("رجالي", f"{IMG}/sneaker.jpg"),
+    ("نسائي", f"{IMG}/handbag.jpg"),
+]
+
+DEFAULT_CATEGORIES = [
+    ("الأحذية", f"{IMG}/sneaker.jpg"),
+    ("الشنط", f"{IMG}/handbag.jpg"),
+    ("الساعات", f"{IMG}/steel-watch.jpg"),
+    ("النظارات والإكسسوارات", f"{IMG}/sunglasses.jpg"),
 ]
 
 
+def ensure_default_departments(db) -> list[Department]:
+    """Ensures the 2 default departments exist in database."""
+    results = []
+    for name, img in DEFAULT_DEPARTMENTS:
+        dept = db.scalar(select(Department).where(Department.name == name))
+        if not dept:
+            dept = Department(name=name, image_url=img)
+            db.add(dept)
+            db.flush()
+        results.append(dept)
+    db.commit()
+    return results
+
+DEMO_PRODUCTS = [
+    # name, description, category_name, gender, price, discount, stock, image
+    ("حذاء رياضي عصري", "حذاء رياضي خفيف بنعل مريح ومثالي للاستخدام اليومي والرياضة", "الأحذية", Gender.MEN, 420, 0, 45, "sneaker.jpg"),
+    ("خفية كتد أنيقة", "خفية مريحة بتصميم عصري وألوان جذابة", "الأحذية", Gender.MEN, 750, 0, 35, "sneaker.jpg"),
+    ("خفية جلد أنيقة", "خفية من الجلد الطبيعي الفاخر مبطنة بالكامل لراحة فائقة", "الأحذية", Gender.WOMEN, 750, 20, 40, "handbag.jpg"),
+    ("محفظة جلد طبيعية", "محفظة جلدية متعددة الجيوب للبطاقات والعملات النقدية", "الشنط", Gender.MEN, 290, 0, 30, "black-bag.jpg"),
+    ("حقيبة يد جلد أنيقة", "حقيبة يد نسائية من الجلد الفاخر مع حزام كتف قابل للتعديل", "الشنط", Gender.WOMEN, 750, 20, 25, "handbag.jpg"),
+    ("حقيبة سوداء فاخرة", "حقيبة كلاسيكية راقية باللون الأسود الملكي بمقبض علوي", "الشنط", Gender.WOMEN, 1200, 10, 20, "black-bag.jpg"),
+    ("ساعة ستانلس كلاسيك", "ساعة يد بسوار ستانلس ستيل مقاوم للصدأ ومقاومة للماء", "الساعات", Gender.MEN, 1450, 0, 10, "steel-watch.jpg"),
+    ("ساعة جلد بني", "ساعة أنيقة بحزام من الجلد البني الطبيعي وميناء أبيض كلاسيكي", "الساعات", Gender.MEN, 990, 25, 15, "leather-watch.jpg"),
+    ("ساعة نسائية ناعمة", "ساعة يد أنثوية رقيقة بإطار رفيع ولمسة ذهبية أنيقة", "الساعات", Gender.WOMEN, 870, 0, 20, "leather-watch.jpg"),
+    ("ساعة كرونوغراف رياضية", "ساعة كرونوغراف عالية الدقة بتصميم رياضي متين", "الساعات", Gender.MEN, 2100, 30, 8, "steel-watch.jpg"),
+    ("حذاء كلاسيك جلد أسود", "حذاء رسمي فخم للبدلات والمناسبات الرسمية", "الأحذية", Gender.MEN, 890, 15, 30, "sneaker.jpg"),
+    ("كعب عالي بيج أنيق", "حذاء كعب عالي بلون بيج ناعم يكمل إطلالتك الساحرة", "الأحذية", Gender.WOMEN, 650, 20, 25, "heels.jpg"),
+    ("حذاء سهرة نسائي لامع", "تصميم راقٍ ببريق لافت للحفلات والسهرات الخاصة", "الأحذية", Gender.WOMEN, 980, 0, 20, "heels.jpg"),
+    ("حقيبة كتف يومية راقية", "حقيبة كروس بدي واسعة وعملية للمشاوير اليومية", "الشنط", Gender.WOMEN, 540, 0, 22, "handbag.jpg"),
+    ("حقيبة لابتوب جلدية رجالية", "حقيبة عمل أنيقة تتسع للابتوب 15 بوصة والمستندات", "الشنط", Gender.MEN, 1350, 0, 15, "black-bag.jpg"),
+    ("ساعة يد ذهبية فاخرة", "ساعة كوارتز بميناء ماسي وسوار مطلي بالذهب عيار 18", "الساعات", Gender.WOMEN, 1680, 15, 9, "steel-watch.jpg"),
+    ("حذاء لوفر إيطالي كلاسيك", "حذاء لوفر بدون أربطة مصنوع يدوياً من الجلد المدبوغ", "الأحذية", Gender.MEN, 820, 10, 32, "sneaker.jpg"),
+    ("حقيبة يد صغيرة للمناسبات", "كلتش مسائي أنيق مناسب للسهرات والحفلات", "الشنط", Gender.WOMEN, 490, 0, 25, "handbag.jpg"),
+    ("ساعة يد كاجوال كلاسيك", "ساعة عصرية خفيفة الوزن تناسب الإطلالات اليومية والعمل", "الساعات", Gender.MEN, 780, 0, 14, "leather-watch.jpg"),
+    ("محفظة كروت جلدية مضغوطة", "محفظة بطاقات صغيرة نحيفة مزودة بحماية RFID", "الشنط", Gender.MEN, 190, 0, 40, "black-bag.jpg"),
+    ("نظارة شمسية كلاسيك بولارايزد", "نظارة شمسية فاخرة بإطار أنيق وعدسات مستقطبة لحماية كاملة من أشعة الشمس", "النظارات والإكسسوارات", Gender.MEN, 650, 15, 25, "sunglasses.jpg"),
+    ("نظارة شمسية نسائية عصرية", "تصميم عصري جذاب بلمسات ذهبية راقية تناسب مختلف الإطلالات اليومية والمناسبات", "النظارات والإكسسوارات", Gender.WOMEN, 720, 20, 20, "sunglasses.jpg"),
+]
+
+
+def ensure_default_categories(db) -> dict[str, Category]:
+    """Ensures the 4 default categories exist in database."""
+    category_map = {}
+    for name, img in DEFAULT_CATEGORIES:
+        cat = db.scalar(select(Category).where(Category.name == name))
+        if not cat:
+            cat = Category(name=name, image_url=img)
+            db.add(cat)
+            db.flush()
+        category_map[name] = cat
+    db.commit()
+    return category_map
+
+
 def ensure_first_manager(db) -> User:
-    manager = db.scalar(select(User).where(User.role == UserRole.MANAGER))
+    target_email = settings.FIRST_MANAGER_EMAIL.lower()
+    manager = db.scalar(select(User).where(func.lower(User.email) == target_email))
     if manager:
-        # Keep password updated to 4-char policy default
-        manager.hashed_password = hash_password("1234")
+        manager.role = UserRole.MANAGER
+        manager.is_active = True
         db.commit()
         return manager
     manager = User(
-        email=settings.FIRST_MANAGER_EMAIL.lower(),
-        hashed_password=hash_password("1234"),
+        email=target_email,
+        hashed_password="passwordless",
         full_name=settings.FIRST_MANAGER_NAME,
         role=UserRole.MANAGER,
+        is_active=True,
     )
     db.add(manager)
     db.commit()
-    print(f"[OK] Created first manager: {manager.email}")
+    print(f"[OK] Created initial manager: {manager.email}")
     return manager
 
 
-def ensure_first_admin(db) -> User:
-    admin = db.scalar(select(User).where(User.role == UserRole.ADMIN))
-    if admin:
-        # Keep password updated to 4-char policy default
-        admin.hashed_password = hash_password("1234")
-        db.commit()
-        return admin
-    admin = User(
-        email="admin@lo2ta.com",
-        hashed_password=hash_password("1234"),
-        full_name="مشرف المتجر",
-        role=UserRole.ADMIN,
-    )
-    db.add(admin)
-    db.commit()
-    print(f"[OK] Created first admin: {admin.email}")
-    return admin
+def ensure_first_admin(db) -> User | None:
+    # Under unified OTP architecture, only the primary manager account is created by default
+    return None
 
 
 def seed_products(db, manager: User) -> None:
-    # Check if products already exist
+    cat_map = ensure_default_categories(db)
     existing = db.scalars(select(Product)).all()
     if existing:
-        # Populate variants for existing products if missing
+        # Populate variants and link category_id if missing
         for p in existing:
-            if p.category == Category.SHOES and not p.sizes:
+            if not p.category_id:
+                if any(w in p.name for w in ("حذاء", "خفية", "كعب", "لوفر")):
+                    p.category_id = cat_map["الأحذية"].id
+                elif any(w in p.name for w in ("حقيبة", "محفظة")):
+                    p.category_id = cat_map["الشنط"].id
+                elif "ساعة" in p.name:
+                    p.category_id = cat_map["الساعات"].id
+                else:
+                    p.category_id = cat_map["الأحذية"].id
+
+            is_shoes = p.category and ("حذاء" in p.category.name or "أحذية" in p.category.name)
+            if is_shoes and not p.sizes:
                 for sz, st in [(39, 5), (40, 8), (41, 10), (42, 12), (43, 8), (44, 5)]:
                     p.sizes.append(ProductSize(size=sz, stock=st))
-            if p.category in (Category.SHOES, Category.BAGS) and not p.colors:
+            if not p.colors:
                 p.colors.append(ProductColor(name="أسود", code="#111827"))
                 p.colors.append(ProductColor(name="بني", code="#78350f"))
-                p.colors.append(ProductColor(name="بيج", code="#fef3c7"))
+
+        # Check if glasses demo products exist, if not add them
+        has_glasses = any(p.category_id == cat_map["النظارات والإكسسوارات"].id for p in existing)
+        if not has_glasses:
+            for name, desc, cat_key, gender, price, disc, stock, img in DEMO_PRODUCTS:
+                if cat_key == "النظارات والإكسسوارات":
+                    prod = Product(
+                        name=name,
+                        description=desc,
+                        category_id=cat_map[cat_key].id,
+                        gender=gender,
+                        price=Decimal(price),
+                        discount_percent=disc,
+                        stock=stock,
+                        created_by_id=manager.id,
+                    )
+                    prod.media.append(ProductMedia(url=f"{IMG}/{img}", media_type=MediaType.IMAGE, sort_order=0))
+                    prod.colors.append(ProductColor(name="أسود", code="#111827"))
+                    prod.colors.append(ProductColor(name="بني", code="#78350f"))
+                    db.add(prod)
+
         db.commit()
-        print("[INFO] Variants verified for existing products")
+        print("[INFO] Categories, products, and variants verified")
         return
 
-    for name, desc, cat, gender, price, disc, stock, img in DEMO_PRODUCTS:
+    for name, desc, cat_key, gender, price, disc, stock, img in DEMO_PRODUCTS:
+        cat_obj = cat_map.get(cat_key, cat_map["الأحذية"])
         p = Product(
             name=name,
             description=desc,
-            category=cat,
+            category_id=cat_obj.id,
             gender=gender,
             price=Decimal(price),
             discount_percent=disc,
@@ -108,21 +166,16 @@ def seed_products(db, manager: User) -> None:
         )
         p.media.append(ProductMedia(url=f"{IMG}/{img}", media_type=MediaType.IMAGE, sort_order=0))
 
-        # Seed sizes for shoes (30 to 50)
-        if cat == Category.SHOES:
+        if "حذاء" in cat_obj.name or "أحذية" in cat_obj.name:
             for sz, st in [(39, 6), (40, 8), (41, 10), (42, 12), (43, 8), (44, 6)]:
                 p.sizes.append(ProductSize(size=sz, stock=st))
             p.stock = sum(s.stock for s in p.sizes)
 
-        # Seed colors for shoes and bags
-        if cat in (Category.SHOES, Category.BAGS):
-            p.colors.append(ProductColor(name="أسود", code="#111827"))
-            p.colors.append(ProductColor(name="بني", code="#78350f"))
-            p.colors.append(ProductColor(name="بيج", code="#fef3c7"))
-
+        p.colors.append(ProductColor(name="أسود", code="#111827"))
+        p.colors.append(ProductColor(name="بني", code="#78350f"))
         db.add(p)
     db.commit()
-    print(f"[OK] Seeded {len(DEMO_PRODUCTS)} demo products with variants")
+    print(f"[OK] Seeded {len(DEMO_PRODUCTS)} demo products with dynamic categories")
 
 
 def main() -> None:

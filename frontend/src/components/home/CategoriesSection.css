@@ -1,0 +1,139 @@
+/* CategoriesSection.css - Standalone styles for Categories 2x2 Grid */
+
+.categories-section-wrapper {
+  margin-top: 2.5rem;
+}
+
+@media (min-width: 640px) {
+  .categories-section-wrapper {
+    margin-top: 3.5rem;
+  }
+}
+
+.categories-section-header {
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+@media (min-width: 640px) {
+  .categories-section-header {
+    margin-bottom: 1.5rem;
+  }
+}
+
+/* Strict 2x2 Grid Layout using standard CSS Grid */
+.categories-2x2-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .categories-2x2-grid {
+    gap: 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .categories-2x2-grid {
+    gap: 1.5rem;
+  }
+}
+
+/* Category Card Component */
+.category-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 1rem;
+  background-color: #f7f6f2;
+  border: 1px solid rgba(228, 222, 210, 0.75);
+  text-decoration: none;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+  position: relative;
+}
+
+@media (min-width: 640px) {
+  .category-card {
+    border-radius: 1.5rem;
+  }
+}
+
+.category-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.12);
+}
+
+.category-card-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background-color: #eeebe3;
+}
+
+.category-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  mix-blend-mode: multiply;
+  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.category-card:hover .category-card-img {
+  transform: scale(1.08);
+}
+
+.category-card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .category-card-content {
+    padding: 1.125rem 0.75rem;
+  }
+}
+
+.category-card-title {
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: #18181b;
+  line-height: 1.3;
+}
+
+@media (min-width: 640px) {
+  .category-card-title {
+    font-size: 1.125rem;
+  }
+}
+
+.category-card-subtitle {
+  font-size: 0.6875rem;
+  color: #71717a;
+  margin-top: 0.25rem;
+}
+
+/* Skeleton Loading for Categories */
+.category-skeleton-card {
+  border-radius: 1rem;
+  background-color: #f7f6f2;
+  overflow: hidden;
+  aspect-ratio: 1 / 1.25;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

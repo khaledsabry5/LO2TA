@@ -1,28 +1,42 @@
-# Python
+# Dependencies & Virtual Environments
+node_modules/
+venv/
+.venv/
+env/
+ENV/
+
+# Python Cache & Bytecode
 __pycache__/
 *.py[cod]
-.venv/
-venv/
+*$py.class
 *.egg-info/
 .pytest_cache/
-*.db
-*.sqlite3
 
-# Env / secrets
+# Environment Variables & Secrets
 .env
 .env.*
+.env.local
 !.env.example
 
-# Node
-node_modules/
+# Local Databases
+*.sqlite3
+*.sqlite
+*.db
+lo2ta.db
+
+# Build outputs & Logs
 dist/
+build/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Uploads
 backend/uploads/*
 !backend/uploads/.gitkeep
 
-# OS / IDE
+# OS & Editor files
 .DS_Store
 Thumbs.db
 .vscode/

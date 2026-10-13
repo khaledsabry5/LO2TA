@@ -1,0 +1,221 @@
+/* AdminForms.css - Dedicated Mobile-Responsive Styles for Admin Forms */
+
+/* Main Product Form Container */
+.admin-product-form-container {
+  width: 100%;
+}
+
+.admin-form-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-form-back-btn {
+  display: grid;
+  place-items: center;
+  height: 2.75rem;
+  width: 2.75rem;
+  flex-shrink: 0;
+  border-radius: 0.75rem;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: #18181b;
+  transition: all 0.2s ease;
+}
+
+.admin-form-back-btn:hover {
+  background-color: #f7f6f2;
+}
+
+.admin-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+/* Dynamic Add Rows (Shoe sizes & Colors) */
+.admin-form-size-row,
+.admin-form-color-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* Pricing Grid */
+.admin-pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  width: 100%;
+}
+
+/* Discount Row */
+.admin-discount-box {
+  border-radius: 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: rgba(250, 237, 205, 0.25);
+  padding: 1rem;
+  width: 100%;
+}
+
+.admin-discount-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.admin-discount-badge {
+  display: flex;
+  height: 3rem;
+  width: 5.5rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background-color: #ef233c;
+  font-family: monospace;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(239, 35, 60, 0.25);
+}
+
+.admin-discount-input-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Media Dropzone */
+.admin-media-dropzone {
+  display: flex;
+  cursor: pointer;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  border-radius: 1rem;
+  border: 2px dashed rgba(0, 0, 0, 0.15);
+  background-color: rgba(250, 237, 205, 0.35);
+  padding: 1.5rem;
+  text-align: center;
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.admin-media-dropzone:hover {
+  border-color: #18181b;
+  background-color: #faedcd;
+}
+
+/* Form Action Buttons */
+.admin-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  width: 100%;
+}
+
+/* ========================================================================= */
+/* Mobile Screen Adaptations (max-width: 768px)                               */
+/* ========================================================================= */
+
+@media (max-width: 768px) {
+  /* Stack form groups and ensure 100% width */
+  .admin-form-group {
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  /* Pricing inputs stack vertically */
+  .admin-pricing-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* Discount box stacks badge and input */
+  .admin-discount-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .admin-discount-badge {
+    width: 100%;
+    height: 2.75rem;
+  }
+
+  .admin-discount-input-wrapper {
+    width: 100%;
+  }
+
+  /* Shoe size dynamic add row stacks vertically with full width buttons */
+  .admin-form-size-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .admin-form-size-row input {
+    width: 100% !important;
+  }
+
+  .admin-form-size-row button {
+    width: 100% !important;
+    justify-content: center;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  /* Color dynamic add row stacks vertically with full width buttons */
+  .admin-form-color-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .admin-form-color-row input {
+    width: 100% !important;
+  }
+
+  .admin-form-color-row button {
+    width: 100% !important;
+    justify-content: center;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  /* Media selected files stack vertically */
+  .admin-selected-files-list {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Action buttons at bottom stack vertically and span 100% width */
+  .admin-form-actions {
+    flex-direction: column-reverse;
+    gap: 1rem;
+    width: 100%;
+  }
+
+  .admin-form-actions a,
+  .admin-form-actions button {
+    width: 100% !important;
+    text-align: center;
+    justify-content: center;
+    padding: 0.875rem 1rem !important;
+  }
+}

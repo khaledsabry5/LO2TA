@@ -32,12 +32,6 @@ class UserRole(str, enum.Enum):
     CUSTOMER = "customer"
 
 
-class Category(str, enum.Enum):
-    SHOES = "shoes"
-    BAGS = "bags"
-    WATCHES = "watches"
-
-
 class Gender(str, enum.Enum):
     MEN = "men"
     WOMEN = "women"
@@ -49,21 +43,18 @@ class MediaType(str, enum.Enum):
 
 
 class OrderStatus(str, enum.Enum):
-    PENDING = "pending"
-    CONFIRMED = "confirmed"
-    SHIPPED = "shipped"
-    DELIVERED = "delivered"
-    CANCELLED = "cancelled"
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    DELIVERED = "DELIVERED"
+    NOT_RECEIVED = "NOT_RECEIVED"
 
 
-ACTIVE_ORDER_STATUSES = (OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.SHIPPED)
+ACTIVE_ORDER_STATUSES = (OrderStatus.PENDING, OrderStatus.PROCESSING)
 
 
 def pg_enum(enum_cls: type[enum.Enum], name: str) -> SAEnum:
     return SAEnum(enum_cls, name=name, values_callable=lambda e: [m.value for m in e])
 
-
-CATEGORY_ENUM = pg_enum(Category, "product_category")
 
 TWO_PLACES = Decimal("0.01")
 
@@ -76,7 +67,7 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    hashed_password: Mapped[str | None] = mapped_column(String(255), default="passwordless", nullable=True)
     full_name: Mapped[str] = mapped_column(String(150), unique=True, index=True)
     phone: Mapped[str | None] = mapped_column(String(30), unique=True, index=True)
     role: Mapped[UserRole] = mapped_column(pg_enum(UserRole, "user_role"), default=UserRole.CUSTOMER, index=True)
@@ -101,6 +92,34 @@ class User(Base):
 
 
 # --------------------------------------------------------------------------- #
+# Departments (الفئات - e.g., Men, Women)
+# --------------------------------------------------------------------------- #
+class Department(Base):
+    __tablename__ = "departments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    image_url: Mapped[str] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    products: Mapped[list[Product]] = relationship(back_populates="department")
+
+
+# --------------------------------------------------------------------------- #
+# Categories (Dynamic Table)
+# --------------------------------------------------------------------------- #
+class Category(Base):
+    __tablename__ = "categories"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    image_url: Mapped[str] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    products: Mapped[list[Product]] = relationship(back_populates="category", cascade="all, delete-orphan")
+
+
+# --------------------------------------------------------------------------- #
 # Products & Variants
 # --------------------------------------------------------------------------- #
 class Product(Base):
@@ -110,13 +129,14 @@ class Product(Base):
         CheckConstraint("stock >= 0", name="ck_product_stock_positive"),
         CheckConstraint("discount_percent >= 0 AND discount_percent <= 90", name="ck_product_discount_range"),
         Index("ix_products_active_created", "is_active", "created_at"),
-        Index("ix_products_category_gender", "category", "gender"),
+        Index("ix_products_category_gender", "category_id", "gender"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text)
-    category: Mapped[Category] = mapped_column(CATEGORY_ENUM)
+    category_id: Mapped[int] = mapped_column(ForeignKey("categories.id", ondelete="RESTRICT"), index=True)
+    department_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id", ondelete="SET NULL"), nullable=True, index=True)
     gender: Mapped[Gender] = mapped_column(pg_enum(Gender, "product_gender"))
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     discount_percent: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
@@ -128,6 +148,9 @@ class Product(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+    category: Mapped[Category] = relationship(back_populates="products")
+    department: Mapped[Department | None] = relationship(back_populates="products")
 
     media: Mapped[list[ProductMedia]] = relationship(
         back_populates="product",
@@ -158,7 +181,7 @@ class Product(Base):
 
     @property
     def in_stock(self) -> bool:
-        if self.category == Category.SHOES and self.sizes:
+        if self.category and ("حذاء" in self.category.name or "أحذية" in self.category.name or "shoes" in self.category.name.lower()) and self.sizes:
             return any(s.stock > 0 for s in self.sizes)
         return self.stock > 0
 
@@ -245,7 +268,7 @@ class OrderItem(Base):
 
     # Snapshots so history survives product edits / deletion
     product_name: Mapped[str] = mapped_column(String(200))
-    product_category: Mapped[Category] = mapped_column(CATEGORY_ENUM)
+    product_category: Mapped[str] = mapped_column(String(100))
     unit_price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     discount_percent: Mapped[int] = mapped_column(Integer, default=0)
     final_unit_price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
@@ -256,3 +279,16 @@ class OrderItem(Base):
 
     order: Mapped[Order] = relationship(back_populates="items")
     product: Mapped[Product | None] = relationship()
+
+
+# --------------------------------------------------------------------------- #
+# Email OTP (One-Time Password)
+# --------------------------------------------------------------------------- #
+class EmailOTP(Base):
+    __tablename__ = "email_otps"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    otp_code: Mapped[str] = mapped_column(String(10), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

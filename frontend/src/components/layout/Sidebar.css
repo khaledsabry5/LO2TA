@@ -1,0 +1,274 @@
+/* Sidebar.css - Standalone styles for Main Store Mobile Sidebar & Header Navigation */
+
+/* ------------------------------------------------------------------------- */
+/* Store Mobile Drawer Overlay & Container (RTL)                              */
+/* ------------------------------------------------------------------------- */
+
+.store-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.store-drawer-backdrop.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.store-drawer-container {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 85%;
+  max-width: 320px;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  z-index: 9999;
+  background-color: #fbfaf7;
+  box-shadow: -4px 0 25px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 280px;
+  box-sizing: border-box;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  direction: rtl;
+}
+
+.store-drawer-container.active {
+  transform: translateX(0);
+}
+
+/* Header inside drawer */
+.store-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.125rem 1.25rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background-color: #fbfaf7;
+  flex-shrink: 0;
+}
+
+.store-drawer-close-btn {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  border: none;
+  background: transparent;
+  color: #18181b;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.store-drawer-close-btn:hover {
+  background-color: #f4f3ef;
+}
+
+/* Scrollable vertical navigation list */
+.store-drawer-nav {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.875rem 1rem;
+  padding-bottom: 280px;
+  background-color: #fbfaf7;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-height: 0;
+}
+
+.store-drawer-section-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #a1a1aa;
+  padding: 0.875rem 0.5rem 0.25rem 0.5rem;
+  letter-spacing: 0.02em;
+}
+
+.store-drawer-link {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.875rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #18181b;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.store-drawer-link:hover {
+  background-color: #f7f6f2;
+  color: #000000;
+}
+
+.store-drawer-link.accent {
+  color: #ef233c;
+  background-color: rgba(239, 35, 60, 0.05);
+}
+
+.store-drawer-link.accent:hover {
+  background-color: rgba(239, 35, 60, 0.1);
+}
+
+.store-drawer-link-badge {
+  margin-inline-start: auto;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  background-color: #faedcd;
+  color: #18181b;
+}
+
+/* Injected Dashboard Link for Manager & Admin */
+.store-drawer-dashboard-link {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.875rem;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
+  color: #ffffff;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin: 0.5rem 0;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.store-drawer-dashboard-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
+  color: #ffffff;
+}
+
+/* Footer Section inside drawer */
+.store-drawer-footer {
+  margin-top: auto;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  background-color: #fbfaf7;
+  flex-shrink: 0;
+}
+
+.store-drawer-user-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.store-drawer-user-meta {
+  min-width: 0;
+}
+
+.store-drawer-user-name {
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: #18181b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.store-drawer-user-role {
+  font-size: 0.6875rem;
+  color: #71717a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.store-drawer-user-avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  background-color: #faedcd;
+  display: grid;
+  place-items: center;
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: #18181b;
+  flex-shrink: 0;
+}
+
+.store-drawer-auth-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.store-drawer-login-btn {
+  background-color: #18181b;
+  color: #ffffff;
+  border: none;
+}
+
+.store-drawer-login-btn:hover {
+  background-color: #27272a;
+}
+
+.store-drawer-register-link {
+  margin-top: 0.5rem;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #71717a;
+  display: block;
+  text-decoration: underline;
+}
+
+.store-drawer-logout-btn {
+  background-color: #ffffff;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.store-drawer-logout-btn:hover {
+  background-color: #fef2f2;
+}
+
+/* Mobile Header Action Icons */
+.mobile-header-user-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background-color: transparent;
+  color: #18181b;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.mobile-header-user-btn:hover {
+  background-color: #f4f3ef;
+}

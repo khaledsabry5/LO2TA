@@ -1,0 +1,71 @@
+/* Register.css - Dedicated styling for Register page & Custom Egyptian Phone Input */
+
+.phone-input-wrapper {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border-radius: 0.75rem; /* rounded-xl */
+  border: 1px solid rgba(10, 10, 10, 0.1);
+  background-color: #ffffff;
+  overflow: hidden;
+  direction: ltr; /* Visually keeps country code on the left and digits typed left-to-right */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.phone-input-wrapper:focus-within {
+  border-color: #0a0a0a;
+  box-shadow: 0 0 0 4px #faedcd;
+}
+
+/* Static block for country code */
+.country-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 0.875rem;
+  background-color: #f1eff7; /* Subtle light grayish/purple background */
+  color: #4b4857; /* Refined muted purple/charcoal */
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-family: inherit;
+  border-right: 1px solid rgba(10, 10, 10, 0.08);
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* Interactive phone number input */
+.phone-number-input {
+  flex: 1;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #0a0a0a;
+  letter-spacing: 0.04em;
+  direction: ltr;
+  text-align: left;
+}
+
+.phone-number-input::placeholder {
+  color: rgba(10, 10, 10, 0.4);
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+.phone-number-input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.phone-hint {
+  margin-top: 0.375rem;
+  display: block;
+  font-size: 0.75rem;
+  color: rgba(10, 10, 10, 0.55);
+  text-align: right;
+  direction: rtl;
+}

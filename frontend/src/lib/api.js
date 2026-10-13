@@ -39,8 +39,12 @@ export async function request(path, { method = 'GET', body, form, files, params 
   } else if (form) {
     payload = new URLSearchParams(form)
   } else if (body !== undefined) {
-    headers['Content-Type'] = 'application/json'
-    payload = JSON.stringify(body)
+    if (typeof FormData !== 'undefined' && body instanceof FormData) {
+      payload = body
+    } else {
+      headers['Content-Type'] = 'application/json'
+      payload = JSON.stringify(body)
+    }
   }
 
   try {
@@ -60,15 +64,29 @@ export async function request(path, { method = 'GET', body, form, files, params 
 
 export const api = {
   // auth
-  login: (email, password) => request('/auth/login', { method: 'POST', form: { username: email, password } }),
-  passwordlessLogin: (identifier) => request('/auth/passwordless-login', { method: 'POST', body: { identifier } }),
+  requestOTP: (email) => request('/auth/request-otp', { method: 'POST', body: { email } }),
+  verifyOTP: (email, otp) => request('/auth/verify-otp', { method: 'POST', body: { email, otp } }),
   register: (data) => request('/auth/register', { method: 'POST', body: data }),
   me: () => request('/auth/me'),
+
+  // departments
+  departments: () => request('/departments'),
+  department: (id) => request(`/departments/${id}`),
+  createDepartment: (formData) => request('/departments', { method: 'POST', body: formData }),
+  updateDepartment: (id, formData) => request(`/departments/${id}`, { method: 'PUT', body: formData }),
+  deleteDepartment: (id) => request(`/departments/${id}`, { method: 'DELETE' }),
+
+  // categories
+  categories: () => request('/categories'),
+  category: (id) => request(`/categories/${id}`),
+  categoryProducts: (id, params) => request(`/categories/${id}/products`, { params }),
+  createCategory: (formData) => request('/categories', { method: 'POST', body: formData }),
+  updateCategory: (id, formData) => request(`/categories/${id}`, { method: 'PUT', body: formData }),
+  deleteCategory: (id) => request(`/categories/${id}`, { method: 'DELETE' }),
 
   // catalog
   latest: () => request('/products/latest'),
   products: (params) => request('/products', { params }),
-  categoryProducts: (category, params) => request(`/categories/${category}/products`, { params }),
   filterOptions: (params) => request('/products/filter-options', { params }),
   product: (id) => request(`/products/${id}`),
 
@@ -90,7 +108,9 @@ export const api = {
 
   // staff – orders
   fulfillment: (params) => request('/orders', { params }),
-  setOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PATCH', body: { status } }),
+  setOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PUT', body: { status } }),
+  deleteOrder: (id) => request(`/orders/${id}`, { method: 'DELETE' }),
+  clearAllOrders: () => request('/orders', { method: 'DELETE' }),
 
   // manager only
   analytics: () => request('/manager/analytics'),

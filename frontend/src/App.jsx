@@ -16,6 +16,8 @@ import DashboardHome from './pages/dashboard/DashboardHome'
 import Overview from './pages/dashboard/Overview'
 import ProductsAdmin from './pages/dashboard/ProductsAdmin'
 import ProductForm from './pages/dashboard/ProductForm'
+import CategoriesAdmin from './pages/dashboard/CategoriesAdmin'
+import AdminDepartments from './pages/dashboard/AdminDepartments'
 import OrdersAdmin from './pages/dashboard/OrdersAdmin'
 import Customers from './pages/dashboard/Customers'
 import Staff from './pages/dashboard/Staff'
@@ -37,8 +39,8 @@ export default function App() {
         <Route element={<StoreLayout />}>
           <Route index element={<Home />} />
           <Route path="shop" element={<Shop />} />
-          <Route path="category/:category" element={<Shop />} />
-          <Route path="categories/:category" element={<Shop />} />
+          <Route path="category/:categoryId" element={<Shop />} />
+          <Route path="categories/:categoryId" element={<Shop />} />
           <Route path="product/:id" element={<ProductDetail />} />
           <Route path="cart" element={<Cart />} />
           <Route path="login" element={<Login />} />
@@ -57,6 +59,8 @@ export default function App() {
             <Route path="products" element={<ProductsAdmin />} />
             <Route path="products/new" element={<ProductForm />} />
             <Route path="products/:id" element={<ProductForm />} />
+            <Route path="departments" element={<AdminDepartments />} />
+            <Route path="categories" element={<CategoriesAdmin />} />
             <Route path="orders" element={<OrdersAdmin />} />
             {/* Manager only */}
             <Route element={<RequireRole roles={['manager']} redirect="/dashboard/products" />}>

@@ -20,7 +20,7 @@ from ..security import hash_password
 
 router = APIRouter(prefix="/manager", tags=["manager"])
 
-REVENUE_STATUSES = (OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.SHIPPED, OrderStatus.DELIVERED)
+REVENUE_STATUSES = (OrderStatus.PENDING, OrderStatus.PROCESSING, OrderStatus.DELIVERED)
 
 
 # ------------------------------- Customers --------------------------------- #
@@ -80,7 +80,7 @@ def create_staff(data: StaffCreate, db: DB, manager: ManagerUser):
         raise HTTPException(status.HTTP_409_CONFLICT, "البريد الإلكتروني مسجل بالفعل")
     user = User(
         email=email,
-        hashed_password=hash_password(data.password),
+        hashed_password=hash_password(data.password) if data.password else None,
         full_name=data.full_name.strip(),
         phone=data.phone,
         role=UserRole(data.role),
@@ -104,7 +104,7 @@ def update_staff(user_id: int, data: StaffUpdate, db: DB, manager: ManagerUser):
     if data.role is not None:
         user.role = UserRole(data.role)
     if data.password is not None:
-        user.hashed_password = hash_password(data.password)
+        user.hashed_password = hash_password(data.password) if data.password else None
     db.commit()
     db.refresh(user)
     return user
@@ -115,10 +115,11 @@ def update_staff(user_id: int, data: StaffUpdate, db: DB, manager: ManagerUser):
 def all_sales(
     db: DB,
     _: ManagerUser,
-    status_filter: OrderStatus | None = Query(default=None, alias="status"),
+    status_filter: OrderStatus | None = Query(default=OrderStatus.DELIVERED, alias="status"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
+    """Sales archive: returns completed sales (orders with DELIVERED status)."""
     stmt = select(Order).options(selectinload(Order.items), selectinload(Order.customer))
     if status_filter:
         stmt = stmt.where(Order.status == status_filter)

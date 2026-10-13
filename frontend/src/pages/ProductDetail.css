@@ -1,0 +1,384 @@
+/* ProductDetail.css - Dedicated styles for Product Details Page & Variant Selectors */
+
+.product-detail-container {
+  width: 100%;
+}
+
+/* Variant Container Boxes */
+.variant-selector-box {
+  margin-top: 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: rgba(247, 246, 242, 0.6);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.variant-selector-box.has-error {
+  border-color: #ef4444;
+  background-color: rgba(254, 242, 242, 0.6);
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2);
+}
+
+.variant-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.variant-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.variant-label {
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: #18181b;
+}
+
+.variant-selected-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.375rem;
+  background-color: #18181b;
+  color: #ffffff;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.variant-warning-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #dc2626;
+  background-color: #fee2e2;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.375rem;
+}
+
+/* Shoe Size Selector Grid */
+.sizes-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .sizes-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+.size-option-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  padding: 0.625rem 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background-color: #ffffff;
+  color: #18181b;
+  font-size: 0.875rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.size-option-btn:hover:not(:disabled) {
+  border-color: #18181b;
+  background-color: #f4f3ef;
+}
+
+.size-option-btn.selected {
+  border-color: #18181b;
+  background-color: #18181b;
+  color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(24, 24, 27, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.size-option-btn:disabled {
+  border-color: rgba(0, 0, 0, 0.05);
+  background-color: #f4f4f5;
+  color: #a1a1aa;
+  opacity: 0.5;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.size-stock-badge {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #dc2626;
+  margin-top: 0.125rem;
+}
+
+/* Color Selector List */
+.colors-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.color-option-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background-color: #ffffff;
+  color: #18181b;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.color-option-btn:hover {
+  border-color: #18181b;
+  background-color: #f4f3ef;
+}
+
+.color-option-btn.selected {
+  border-color: #18181b;
+  background-color: #18181b;
+  color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(24, 24, 27, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.color-swatch-circle {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+/* Color swatch classes */
+.color-swatch-black { background-color: #111827; }
+.color-swatch-brown { background-color: #78350f; }
+.color-swatch-beige { background-color: #d4b996; }
+.color-swatch-white { background-color: #ffffff; }
+.color-swatch-navy  { background-color: #1e3a8a; }
+.color-swatch-red   { background-color: #b91c1c; }
+.color-swatch-gray  { background-color: #6b7280; }
+.color-swatch-default { background-color: #d4d4d8; }
+
+/* Validation Error Alert Box */
+.variant-validation-message {
+  margin-top: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid #fecaca;
+  background-color: #fef2f2;
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #b91c1c;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Unified Action Buttons & Mobile Responsive Fixes                          */
+/* ------------------------------------------------------------------------- */
+
+.product-actions-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  margin-top: 1.5rem;
+  visibility: visible;
+  opacity: 1;
+  height: auto;
+  overflow: visible;
+}
+
+.whatsapp-button-container {
+  width: 100%;
+  margin: 0;
+  display: block;
+  visibility: visible;
+  opacity: 1;
+}
+
+.product-cart-buttons {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+  visibility: visible;
+  opacity: 1;
+}
+
+.btn-add-cart {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 800;
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: #f4f3ef;
+  color: #18181b;
+  transition: all 0.2s ease;
+  visibility: visible;
+  opacity: 1;
+}
+
+.btn-add-cart:hover:not(:disabled) {
+  background-color: #eae8e1;
+  border-color: #18181b;
+}
+
+.btn-add-cart.added-success {
+  background-color: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+}
+
+.btn-add-cart:disabled {
+  background-color: #f4f4f5;
+  color: #a1a1aa;
+  border-color: rgba(0, 0, 0, 0.05);
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.btn-buy-now {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 800;
+  cursor: pointer;
+  border: none;
+  background-color: #18181b;
+  color: #ffffff;
+  transition: all 0.2s ease;
+  visibility: visible;
+  opacity: 1;
+}
+
+.btn-buy-now:hover:not(:disabled) {
+  background-color: #27272a;
+}
+
+.btn-buy-now:disabled {
+  background-color: #e4e4e7;
+  color: #a1a1aa;
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+/* WhatsApp Direct Inquire & Purchase Button */
+.whatsapp-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  width: 100%;
+  border-radius: 0.875rem;
+  padding: 0.875rem 1.25rem;
+  background-color: #25D366;
+  color: #ffffff;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  line-height: 1.4;
+  text-align: center;
+  visibility: visible;
+  opacity: 1;
+}
+
+.whatsapp-button:hover {
+  background-color: #20ba59;
+  color: #ffffff;
+  box-shadow: 0 6px 20px rgba(37, 211, 102, 0.45);
+  transform: translateY(-1px);
+}
+
+.whatsapp-button:active {
+  transform: translateY(0) scale(0.99);
+  background-color: #1da850;
+}
+
+.whatsapp-icon {
+  width: 1.35rem;
+  height: 1.35rem;
+  flex-shrink: 0;
+  fill: currentColor;
+}
+
+/* Mobile Screens (max-width: 768px): Vertical stacking, 100% width, clear touch targets */
+@media (max-width: 768px) {
+  .product-actions-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    width: 100% !important;
+    margin-top: 1.25rem !important;
+    position: static !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .whatsapp-button-container {
+    width: 100% !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    margin: 0 !important;
+  }
+
+  .product-cart-buttons {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    width: 100% !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: static !important;
+  }
+
+  .whatsapp-button,
+  .btn-add-cart,
+  .btn-buy-now {
+    width: 100% !important;
+    flex: none !important;
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-height: 48px !important;
+    font-size: 0.875rem !important;
+    box-sizing: border-box !important;
+    border-radius: 0.875rem !important;
+  }
+
+  .whatsapp-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}

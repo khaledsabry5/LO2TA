@@ -23,11 +23,13 @@ function Chip({ active, onClick, children, tone }) {
 }
 
 export default function Shop() {
-  const { category: pathCategory } = useParams()
+  const { category: pathCategory, categoryId } = useParams()
   const [params, setParams] = useSearchParams()
 
+  const rawCategoryParam = categoryId || pathCategory || ''
   const gender = params.get('gender') || ''
-  const category = params.get('category') || pathCategory || ''
+  const department = params.get('department') || ''
+  const category = params.get('category') || rawCategoryParam || ''
   const discounted = params.get('discounted') === 'true'
   const q = params.get('q') || ''
   const size = params.get('size') || ''
@@ -35,6 +37,8 @@ export default function Shop() {
   const minPrice = params.get('min_price') || ''
   const maxPrice = params.get('max_price') || ''
 
+  const [allDepartments, setAllDepartments] = useState([])
+  const [allCategories, setAllCategories] = useState([])
   const [data, setData] = useState({ total: 0, items: [] })
   const [loading, setLoading] = useState(true)
   const [offset, setOffset] = useState(0)
@@ -47,10 +51,33 @@ export default function Shop() {
     max_price: 5000,
   })
 
+  // Load all departments & categories
+  useEffect(() => {
+    api.departments()
+      .then((depts) => {
+        if (Array.isArray(depts)) setAllDepartments(depts)
+      })
+      .catch(() => {})
+
+    api.categories()
+      .then((cats) => {
+        if (Array.isArray(cats)) setAllCategories(cats)
+      })
+      .catch(() => {})
+  }, [])
+
+  const matchedCategory = allCategories.find(
+    (c) => String(c.id) === String(category) || c.name === category || c.name.toLowerCase() === category.toLowerCase()
+  )
+  const isShoes = matchedCategory
+    ? (matchedCategory.name === 'الأحذية' || matchedCategory.name.includes('أحذية'))
+    : (category === 'shoes' || category === '1')
+
   // Load available sizes and colors dynamically for shoes
   useEffect(() => {
-    if (category === 'shoes') {
-      api.filterOptions({ category: 'shoes', gender: gender || undefined })
+    if (isShoes) {
+      const catFilterVal = matchedCategory ? String(matchedCategory.id) : (category || 'shoes')
+      api.filterOptions({ category: catFilterVal, gender: gender || undefined })
         .then((res) => {
           if (res) {
             setFilterOptions(res)
@@ -60,7 +87,7 @@ export default function Shop() {
           console.warn('Failed to load filter options:', err)
         })
     }
-  }, [category, gender])
+  }, [isShoes, matchedCategory, category, gender])
 
   const update = (key, value) => {
     const next = new URLSearchParams(params)
@@ -105,6 +132,7 @@ export default function Shop() {
       try {
         const queryParams = {
           gender: gender || undefined,
+          department: department || undefined,
           category: category || undefined,
           q: q || undefined,
           discounted: discounted || undefined,
@@ -134,13 +162,14 @@ export default function Shop() {
     return () => {
       mounted = false
     }
-  }, [gender, category, q, discounted, size, color, minPrice, maxPrice])
+  }, [gender, department, category, q, discounted, size, color, minPrice, maxPrice])
 
   const loadMore = async () => {
     const nextOffset = offset + PAGE
     try {
       const res = await api.products({
         gender: gender || undefined,
+        department: department || undefined,
         category: category || undefined,
         q: q || undefined,
         discounted: discounted || undefined,
@@ -160,13 +189,16 @@ export default function Shop() {
     }
   }
 
+  const matchedDepartment = allDepartments.find((d) => String(d.id) === String(department) || d.name === department)
+  const departmentTitle = matchedDepartment?.name || (gender && (gender === 'men' ? 'الرجال' : 'النساء'))
+  const categoryTitle = matchedCategory?.name || (CATEGORY_LABELS[category] || (isNaN(Number(category)) ? category : ''))
+
   const title = q
     ? `نتائج البحث عن «${q}»`
-    : [gender && (gender === 'men' ? 'الرجال' : 'النساء'), category && CATEGORY_LABELS[category], discounted && 'العروض']
+    : [departmentTitle, categoryTitle, discounted && 'العروض']
         .filter(Boolean)
         .join(' · ') || 'جميع المنتجات'
 
-  const isShoes = category === 'shoes'
   const activeFiltersCount = [size, color, minPrice, maxPrice].filter(Boolean).length
 
   return (
@@ -194,15 +226,55 @@ export default function Shop() {
         )}
       </div>
 
-      {/* Categories and Gender chips */}
+      {/* Dynamic Departments and Categories chips */}
       <div className="no-scrollbar -mx-4 mt-5 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
-        {Object.entries(GENDER_LABELS).map(([k, v]) => (
-          <Chip key={k} active={gender === k} onClick={() => update('gender', k)}>{v}</Chip>
-        ))}
+        {allDepartments.length > 0 ? (
+          allDepartments.map((dept) => {
+            const isActive = String(department) === String(dept.id) ||
+              (!department && dept.name?.includes('رجال') && gender === 'men') ||
+              (!department && dept.name?.includes('نساء') && gender === 'women')
+            return (
+              <Chip
+                key={dept.id}
+                active={isActive}
+                onClick={() => {
+                  const next = new URLSearchParams(params)
+                  if (isActive) {
+                    next.delete('department')
+                    next.delete('gender')
+                  } else {
+                    next.set('department', String(dept.id))
+                    if (dept.name?.includes('رجال')) next.set('gender', 'men')
+                    else if (dept.name?.includes('نساء')) next.set('gender', 'women')
+                    else next.delete('gender')
+                  }
+                  setParams(next)
+                }}
+              >
+                {dept.name}
+              </Chip>
+            )
+          })
+        ) : (
+          Object.entries(GENDER_LABELS).map(([k, v]) => (
+            <Chip key={k} active={gender === k} onClick={() => update('gender', k)}>{v}</Chip>
+          ))
+        )}
         <span className="mx-1 w-px shrink-0 bg-black/10" />
-        {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
-          <Chip key={k} active={category === k} onClick={() => update('category', k)}>{v}</Chip>
-        ))}
+        {allCategories.length > 0 ? (
+          allCategories.map((c) => {
+            const isActive = String(category) === String(c.id) || category === c.name || category === c.name.toLowerCase()
+            return (
+              <Chip key={c.id} active={isActive} onClick={() => update('category', String(c.id))}>
+                {c.name}
+              </Chip>
+            )
+          })
+        ) : (
+          Object.entries(CATEGORY_LABELS).map(([k, v]) => (
+            <Chip key={k} active={category === k} onClick={() => update('category', k)}>{v}</Chip>
+          ))
+        )}
         <span className="mx-1 w-px shrink-0 bg-black/10" />
         <Chip active={discounted} tone="sale" onClick={() => update('discounted', 'true')}>العروض</Chip>
       </div>

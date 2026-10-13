@@ -3,13 +3,15 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import { Alert, Spinner } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
-import { handleEgyptianPhoneChange, isValidEgyptianPhone, isValidTwoNames } from '../lib/phone'
+import { isValidEgyptianPhone, isValidTwoNames } from '../lib/phone'
+import './Register.css'
 
 export default function Register() {
   const { register } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [form, setForm] = useState({ full_name: '', email: '', phone: '+20' })
+  const [form, setForm] = useState({ full_name: '', email: '' })
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -18,8 +20,25 @@ export default function Register() {
   }
 
   const handlePhoneChange = (e) => {
-    const formatted = handleEgyptianPhoneChange(e.target.value)
-    setForm((f) => ({ ...f, phone: formatted }))
+    let raw = e.target.value.replace(/\D/g, '')
+
+    // Handle user pasting with country code +20 or 20
+    if (raw.startsWith('201')) {
+      raw = raw.slice(2)
+    }
+
+    // Prevent typing a leading zero; strip any leading zeroes
+    if (raw.startsWith('0')) {
+      raw = raw.replace(/^0+/, '')
+    }
+
+    // First digit must be 1 (e.g., 10, 11, 12, 15)
+    if (raw.length > 0 && !raw.startsWith('1')) {
+      return
+    }
+
+    // Only accept maximum 10 digits
+    setPhoneNumber(raw.slice(0, 10))
   }
 
   const submit = async (e) => {
@@ -31,8 +50,15 @@ export default function Register() {
       return
     }
 
-    if (!isValidEgyptianPhone(form.phone)) {
-      setError('يرجى إدخال رقم هاتف مصري صحيح يبدأ بـ +201 (مثال: +201012345678)')
+    if (phoneNumber.length !== 10 || !phoneNumber.startsWith('1')) {
+      setError('يرجى إدخال رقم هاتف مصري صحيح مكون من 10 أرقام يبدأ بـ 1 (مثال: 1012345678)')
+      return
+    }
+
+    const fullPhoneNumber = '+20' + phoneNumber.trim()
+
+    if (!isValidEgyptianPhone(fullPhoneNumber)) {
+      setError('يرجى إدخال رقم هاتف مصري صحيح يبدأ بـ 10 أو 11 أو 12 أو 15')
       return
     }
 
@@ -41,7 +67,7 @@ export default function Register() {
       await register({
         full_name: form.full_name.trim(),
         email: form.email.trim(),
-        phone: form.phone.trim(),
+        phone: fullPhoneNumber,
       })
       navigate(location.state?.from || '/', { replace: true })
     } catch (err) {
@@ -89,19 +115,24 @@ export default function Register() {
         </div>
 
         <div>
-          <label className="label" htmlFor="phone">رقم الهاتف المصري (+20)</label>
-          <input
-            id="phone"
-            type="tel"
-            dir="ltr"
-            required
-            placeholder="+2010xxxxxxxx"
-            className="input text-end font-mono"
-            value={form.phone}
-            onChange={handlePhoneChange}
-          />
-          <span className="mt-1 block text-[0.7rem] text-ink-muted">
-            شبكات المحمول في مصر (+2010, +2011, +2012, +2015)
+          <label className="label" htmlFor="phone">رقم الهاتف المحمول</label>
+          <div className="phone-input-wrapper">
+            <div className="country-code">(+20)</div>
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              required
+              maxLength={10}
+              pattern="1[0-9]{9}"
+              placeholder="10xxxxxxxx"
+              className="phone-number-input"
+              value={phoneNumber}
+              onChange={handlePhoneChange}
+            />
+          </div>
+          <span className="phone-hint">
+            أدخل 10 أرقام تبدأ بـ 1 (شبكات: 10، 11، 12، 15)
           </span>
         </div>
 

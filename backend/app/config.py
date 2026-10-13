@@ -23,8 +23,15 @@ class Settings(BaseSettings):
     MAX_IMAGE_MB: int = 8
     MAX_VIDEO_MB: int = 50
 
-    FIRST_MANAGER_EMAIL: str = "manager@lo2ta.com"
-    FIRST_MANAGER_PASSWORD: str = "1234"
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = "lo2tastore2026@gmail.com"
+    SMTP_PASSWORD: str = "lansccvbeaeuxogf"
+    SMTP_FROM_EMAIL: str = "lo2tastore2026@gmail.com"
+    SMTP_FROM_NAME: str = "Lo2ta Accessories"
+
+    FIRST_MANAGER_EMAIL: str = "lo2tastore2026@gmail.com"
+    FIRST_MANAGER_PASSWORD: str = ""
     FIRST_MANAGER_NAME: str = "مدير المتجر"
 
 

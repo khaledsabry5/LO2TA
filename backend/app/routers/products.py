@@ -5,7 +5,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
 from ..deps import DB, StaffUser
-from ..models import Category, Gender, Product, ProductColor, ProductMedia, ProductSize
+from ..models import Category, Department, Gender, Product, ProductColor, ProductMedia, ProductSize
 from ..schemas import (
     DiscountIn,
     MediaOut,
@@ -19,7 +19,6 @@ from ..schemas import (
 from ..storage import delete_media_file, delete_product_folder, save_upload
 
 router = APIRouter(prefix="/products", tags=["products"])
-categories_router = APIRouter(prefix="/categories", tags=["categories"])
 
 LATEST_LIMIT = 20
 
@@ -29,6 +28,8 @@ def _get_product(db, product_id: int) -> Product:
         select(Product)
         .where(Product.id == product_id)
         .options(
+            selectinload(Product.category),
+            selectinload(Product.department),
             selectinload(Product.media),
             selectinload(Product.sizes),
             selectinload(Product.colors),
@@ -41,7 +42,9 @@ def _get_product(db, product_id: int) -> Product:
 
 def _apply_filters(
     stmt,
-    category: Category | None = None,
+    category: str | int | None = None,
+    department: str | int | None = None,
+    department_id: int | None = None,
     gender: Gender | None = None,
     q: str | None = None,
     discounted: bool = False,
@@ -50,8 +53,46 @@ def _apply_filters(
     min_price: Decimal | None = None,
     max_price: Decimal | None = None,
 ):
-    if category:
-        stmt = stmt.where(Product.category == category)
+    if category is not None and str(category).strip():
+        cat_str = str(category).strip()
+        if cat_str.isdigit():
+            stmt = stmt.where(Product.category_id == int(cat_str))
+        else:
+            legacy_map = {
+                "shoes": "الأحذية",
+                "bags": "الشنط",
+                "watches": "الساعات",
+                "glasses": "النظارات والإكسسوارات",
+                "sunglasses": "النظارات والإكسسوارات",
+            }
+            target_name = legacy_map.get(cat_str.lower(), cat_str)
+            stmt = stmt.join(Product.category).where(
+                or_(
+                    func.lower(Category.name) == target_name.lower(),
+                    Category.name.ilike(f"%{cat_str}%"),
+                )
+            )
+    dept_val = department_id if department_id is not None else department
+    if dept_val is not None and str(dept_val).strip():
+        dept_str = str(dept_val).strip()
+        if dept_str.isdigit():
+            d_id = int(dept_str)
+            if d_id == 1:
+                stmt = stmt.where(or_(Product.department_id == 1, Product.gender == Gender.MEN))
+            elif d_id == 2:
+                stmt = stmt.where(or_(Product.department_id == 2, Product.gender == Gender.WOMEN))
+            else:
+                stmt = stmt.where(Product.department_id == d_id)
+        else:
+            if dept_str.lower() in ("men", "رجالي", "الرجال"):
+                stmt = stmt.where(or_(Product.department_id == 1, Product.gender == Gender.MEN))
+            elif dept_str.lower() in ("women", "نسائي", "النساء"):
+                stmt = stmt.where(or_(Product.department_id == 2, Product.gender == Gender.WOMEN))
+            else:
+                stmt = stmt.outerjoin(Product.department).where(
+                    Department.name.ilike(f"%{dept_str}%")
+                )
+
     if gender:
         stmt = stmt.where(Product.gender == gender)
     if discounted:
@@ -94,11 +135,12 @@ def _apply_filters(
 # ================================ PUBLIC ==================================== #
 @router.get("", response_model=ProductPage)
 @router.get("/category/{category_path}", response_model=ProductPage)
-@router.get("/categories/{category_path}/products", response_model=ProductPage)
 def list_products(
     db: DB,
-    category: Category | None = None,
-    category_path: Category | None = None,
+    category: str | int | None = None,
+    category_path: str | int | None = None,
+    department: str | int | None = None,
+    department_id: int | None = None,
     gender: Gender | None = None,
     q: str | None = Query(default=None, max_length=100),
     discounted: bool = False,
@@ -109,10 +151,12 @@ def list_products(
     limit: int = Query(24, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ):
-    cat = category or category_path
+    cat = category if category is not None else category_path
     stmt = _apply_filters(
         select(Product).where(Product.is_active.is_(True)),
         category=cat,
+        department=department,
+        department_id=department_id,
         gender=gender,
         q=q,
         discounted=discounted,
@@ -124,6 +168,8 @@ def list_products(
     total = db.scalar(select(func.count()).select_from(stmt.subquery()))
     items = db.scalars(
         stmt.options(
+            selectinload(Product.category),
+            selectinload(Product.department),
             selectinload(Product.media),
             selectinload(Product.sizes),
             selectinload(Product.colors),
@@ -135,46 +181,33 @@ def list_products(
     return ProductPage(total=total or 0, items=items)
 
 
-@categories_router.get("/{category_id}/products", response_model=ProductPage)
-def get_category_products(
-    category_id: Category,
-    db: DB,
-    gender: Gender | None = None,
-    q: str | None = Query(default=None, max_length=100),
-    discounted: bool = False,
-    size: int | None = Query(default=None, ge=30, le=50, description="Shoe size (30-50)"),
-    color: str | None = Query(default=None, max_length=50, description="Product color"),
-    min_price: Decimal | None = Query(default=None, ge=0, description="Minimum price"),
-    max_price: Decimal | None = Query(default=None, ge=0, description="Maximum price"),
-    limit: int = Query(24, ge=1, le=100),
-    offset: int = Query(0, ge=0),
-):
-    """Direct category products endpoint (e.g. GET /api/categories/shoes/products)."""
-    return list_products(
-        db=db,
-        category=category_id,
-        gender=gender,
-        q=q,
-        discounted=discounted,
-        size=size,
-        color=color,
-        min_price=min_price,
-        max_price=max_price,
-        limit=limit,
-        offset=offset,
-    )
-
-
 @router.get("/filter-options")
 def get_filter_options(
     db: DB,
-    category: Category | None = None,
+    category: str | int | None = None,
     gender: Gender | None = None,
 ):
     """Returns available sizes, colors, and price min/max for dynamic UI filtering."""
     base = select(Product.id).where(Product.is_active.is_(True))
-    if category:
-        base = base.where(Product.category == category)
+    if category is not None and str(category).strip():
+        cat_str = str(category).strip()
+        if cat_str.isdigit():
+            base = base.where(Product.category_id == int(cat_str))
+        else:
+            legacy_map = {
+                "shoes": "الأحذية",
+                "bags": "الشنط",
+                "watches": "الساعات",
+                "glasses": "النظارات والإكسسوارات",
+                "sunglasses": "النظارات والإكسسوارات",
+            }
+            target_name = legacy_map.get(cat_str.lower(), cat_str)
+            base = base.join(Product.category).where(
+                or_(
+                    func.lower(Category.name) == target_name.lower(),
+                    Category.name.ilike(f"%{cat_str}%"),
+                )
+            )
     if gender:
         base = base.where(Product.gender == gender)
     sub = base.subquery()
@@ -223,6 +256,8 @@ def latest_products(db: DB):
         select(Product)
         .where(Product.is_active.is_(True))
         .options(
+            selectinload(Product.category),
+            selectinload(Product.department),
             selectinload(Product.media),
             selectinload(Product.sizes),
             selectinload(Product.colors),
@@ -237,7 +272,7 @@ def latest_products(db: DB):
 def manage_list(
     db: DB,
     _: StaffUser,
-    category: Category | None = None,
+    category: str | int | None = None,
     gender: Gender | None = None,
     q: str | None = Query(default=None, max_length=100),
     discounted: bool = False,
@@ -245,12 +280,14 @@ def manage_list(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
-    stmt = _apply_filters(select(Product), category, gender, q, discounted)
+    stmt = _apply_filters(select(Product), category=category, gender=gender, q=q, discounted=discounted)
     if low_stock is not None:
         stmt = stmt.where(Product.stock <= low_stock)
     total = db.scalar(select(func.count()).select_from(stmt.subquery()))
     items = db.scalars(
         stmt.options(
+            selectinload(Product.category),
+            selectinload(Product.department),
             selectinload(Product.media),
             selectinload(Product.sizes),
             selectinload(Product.colors),
@@ -273,19 +310,23 @@ def create_product(data: ProductCreate, db: DB, user: StaffUser):
     sizes_data = raw_data.pop("sizes", None)
     colors_data = raw_data.pop("colors", None)
 
-    # For shoes with specific sizes, stock is the sum of sizes
-    if data.category == Category.SHOES and sizes_data:
+    cat = db.get(Category, data.category_id)
+    if not cat:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "التصنيف المحدد غير موجود")
+
+    is_shoes = bool(cat and ("حذاء" in cat.name or "أحذية" in cat.name or "shoes" in cat.name.lower()))
+    if is_shoes and sizes_data:
         raw_data["stock"] = sum(s["stock"] for s in sizes_data)
 
     product = Product(**raw_data, created_by_id=user.id)
     db.add(product)
     db.flush()
 
-    if data.category == Category.SHOES and sizes_data:
+    if is_shoes and sizes_data:
         for s in sizes_data:
             product.sizes.append(ProductSize(size=s["size"], stock=s["stock"]))
 
-    if data.category in (Category.SHOES, Category.BAGS) and colors_data:
+    if colors_data:
         for c in colors_data:
             product.colors.append(ProductColor(name=c["name"].strip(), code=c.get("code")))
 
@@ -300,21 +341,27 @@ def update_product(product_id: int, data: ProductUpdate, db: DB, _: StaffUser):
     sizes_data = raw.pop("sizes", None)
     colors_data = raw.pop("colors", None)
 
+    if "category_id" in raw and raw["category_id"] is not None:
+        cat = db.get(Category, raw["category_id"])
+        if not cat:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "التصنيف المحدد غير موجود")
+
     for field, value in raw.items():
         setattr(product, field, value)
 
+    is_shoes = bool(product.category and ("حذاء" in product.category.name or "أحذية" in product.category.name or "shoes" in product.category.name.lower()))
+
     if sizes_data is not None:
         product.sizes.clear()
-        if product.category == Category.SHOES:
+        if is_shoes:
             for s in sizes_data:
                 product.sizes.append(ProductSize(size=s["size"], stock=s["stock"]))
             product.stock = sum(s["stock"] for s in sizes_data)
 
     if colors_data is not None:
         product.colors.clear()
-        if product.category in (Category.SHOES, Category.BAGS):
-            for c in colors_data:
-                product.colors.append(ProductColor(name=c["name"].strip(), code=c.get("code")))
+        for c in colors_data:
+            product.colors.append(ProductColor(name=c["name"].strip(), code=c.get("code")))
 
     db.commit()
     return _get_product(db, product_id)

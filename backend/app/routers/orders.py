@@ -1,22 +1,14 @@
 from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
-from ..deps import DB, CustomerUser, StaffUser
-from ..models import ACTIVE_ORDER_STATUSES, Category, Order, OrderItem, OrderStatus, Product, UserRole
+from ..deps import DB, CustomerUser, ManagerUser, StaffUser
+from ..models import ACTIVE_ORDER_STATUSES, Order, OrderItem, OrderStatus, Product, UserRole
 from ..schemas import OrderCreate, OrderFulfillmentOut, OrderOut, OrderStatusUpdate
 
 router = APIRouter(prefix="/orders", tags=["orders"])
-
-ALLOWED_TRANSITIONS: dict[OrderStatus, set[OrderStatus]] = {
-    OrderStatus.PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED},
-    OrderStatus.CONFIRMED: {OrderStatus.SHIPPED, OrderStatus.CANCELLED},
-    OrderStatus.SHIPPED: {OrderStatus.DELIVERED, OrderStatus.CANCELLED},
-    OrderStatus.DELIVERED: set(),
-    OrderStatus.CANCELLED: set(),
-}
 
 
 def _load_order(db, order_id: int) -> Order:
@@ -27,26 +19,34 @@ def _load_order(db, order_id: int) -> Order:
 
 
 def _restock(db, order: Order) -> None:
-    ids = [i.product_id for i in order.items if i.product_id]
+    """Safely restore item quantities back to respective products and size inventories.
+    Handles potentially deleted products gracefully without crashing.
+    """
+    ids = [i.product_id for i in order.items if i.product_id is not None]
     if not ids:
         return
-    products = {
-        p.id: p
-        for p in db.scalars(
-            select(Product)
-            .where(Product.id.in_(ids))
-            .options(selectinload(Product.sizes))
-            .with_for_update()
-        )
-    }
+    stmt = (
+        select(Product)
+        .where(Product.id.in_(ids))
+        .options(selectinload(Product.sizes))
+    )
+    if "sqlite" not in db.bind.dialect.name:
+        stmt = stmt.with_for_update()
+
+    products = {p.id: p for p in db.scalars(stmt).all()}
+
     for item in order.items:
-        if item.product_id in products:
-            prod = products[item.product_id]
-            prod.stock += item.quantity
+        if not item.product_id or item.product_id not in products:
+            # Gracefully handle cases where product was deleted from DB before restock
+            continue
+        prod = products[item.product_id]
+        if prod is not None:
+            qty = int(item.quantity or 0)
+            prod.stock = (prod.stock or 0) + qty
             if item.selected_size and prod.sizes:
                 size_obj = next((s for s in prod.sizes if s.size == item.selected_size), None)
-                if size_obj:
-                    size_obj.stock += item.quantity
+                if size_obj is not None:
+                    size_obj.stock = (size_obj.stock or 0) + qty
 
 
 # ============================== CUSTOMER ==================================== #
@@ -85,7 +85,8 @@ def checkout(data: OrderCreate, db: DB, user: CustomerUser):
             raise HTTPException(status.HTTP_400_BAD_REQUEST, f"المنتج رقم {item.product_id} غير متاح")
 
         # Size inventory check for shoes
-        if product.category == Category.SHOES and product.sizes:
+        is_shoe = bool(product.category and ("حذاء" in product.category.name or "أحذية" in product.category.name or "shoes" in product.category.name.lower()))
+        if is_shoe and product.sizes:
             if not item.selected_size:
                 db.rollback()
                 raise HTTPException(status.HTTP_400_BAD_REQUEST, f"يرجى تحديد المقاس للمنتج «{product.name}»")
@@ -109,11 +110,12 @@ def checkout(data: OrderCreate, db: DB, user: CustomerUser):
         line = final_unit * item.quantity
         subtotal += unit * item.quantity
         total += line
+        cat_name = product.category.name if product.category else "عام"
         order.items.append(
             OrderItem(
                 product_id=product.id,
                 product_name=product.name,
-                product_category=product.category,
+                product_category=cat_name,
                 unit_price=unit,
                 discount_percent=product.discount_percent,
                 final_unit_price=final_unit,
@@ -153,8 +155,8 @@ def cancel_my_order(order_id: int, db: DB, user: CustomerUser):
     if order.customer_id != user.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "الطلب غير موجود")
     if order.status != OrderStatus.PENDING:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "لا يمكن إلغاء الطلب بعد تأكيده")
-    order.status = OrderStatus.CANCELLED
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "لا يمكن إلغاء الطلب بعد البدء في معالجته")
+    order.status = OrderStatus.NOT_RECEIVED
     _restock(db, order)
     db.commit()
     return _load_order(db, order_id)
@@ -166,45 +168,87 @@ def fulfillment_queue(
     db: DB,
     user: StaffUser,
     status_filter: OrderStatus | None = Query(default=None, alias="status"),
-    limit: int = Query(50, ge=1, le=200),
+    active_only: bool = Query(default=False),
+    limit: int = Query(100, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
-    """Orders to fulfil.
-
-    * Admins only ever see ACTIVE orders (pending / confirmed / shipped) and only
-      the shipping snapshot – never the customer's account or overall sales.
-    * Managers may also see delivered / cancelled orders here (full sales data
-      lives under /api/manager/sales).
+    """Orders to fulfil for Admins and Managers.
+    Can filter by status or fetch active/pending orders only.
     """
     stmt = select(Order).options(selectinload(Order.items))
-    if user.role == UserRole.ADMIN:
-        stmt = stmt.where(Order.status.in_(ACTIVE_ORDER_STATUSES))
     if status_filter:
-        if user.role == UserRole.ADMIN and status_filter not in ACTIVE_ORDER_STATUSES:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "ليس لديك صلاحية لعرض الطلبات المغلقة")
         stmt = stmt.where(Order.status == status_filter)
-    return db.scalars(stmt.order_by(Order.created_at.asc()).limit(limit).offset(offset)).all()
+    elif active_only:
+        stmt = stmt.where(Order.status.in_(ACTIVE_ORDER_STATUSES))
+    return db.scalars(stmt.order_by(Order.created_at.desc()).limit(limit).offset(offset)).all()
 
 
 @router.get("/{order_id}", response_model=OrderFulfillmentOut)
 def fulfillment_order(order_id: int, db: DB, user: StaffUser):
-    order = _load_order(db, order_id)
-    if user.role == UserRole.ADMIN and order.status not in ACTIVE_ORDER_STATUSES:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "هذا الطلب مغلق")
-    return order
+    return _load_order(db, order_id)
 
 
+@router.put("/{order_id}/status", response_model=OrderFulfillmentOut)
 @router.patch("/{order_id}/status", response_model=OrderFulfillmentOut)
 def update_status(order_id: int, data: OrderStatusUpdate, db: DB, user: StaffUser):
+    """Update order status. Protected endpoint for Admins/Managers.
+    - If status is 'لم يتم الاستلام' (NOT_RECEIVED): restocks items safely and idempotently.
+    - If status is 'تم التوصيل' (DELIVERED): simply marks the order as a completed sale.
+    - Transaction commits only if all updates succeed; rolls back otherwise.
+    """
     order = _load_order(db, order_id)
-    if user.role == UserRole.ADMIN and order.status not in ACTIVE_ORDER_STATUSES:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "هذا الطلب مغلق")
-    if data.status not in ALLOWED_TRANSITIONS[order.status]:
+    previous_status = order.status
+    target_status = data.status
+
+    try:
+        # Idempotency check:
+        # Return quantities to respective Product and size inventory ONLY if:
+        # 1) Target status is NOT_RECEIVED ("لم يتم الاستلام")
+        # 2) Previous status was NOT ALREADY NOT_RECEIVED (prevents inventory duplication)
+        if target_status == OrderStatus.NOT_RECEIVED and previous_status != OrderStatus.NOT_RECEIVED:
+            _restock(db, order)
+
+        # Status DELIVERED ("تم التوصيل"): Simply updates status, marking order as completed sale.
+        order.status = target_status
+
+        # Commit only if all operations succeed
+        db.commit()
+        db.refresh(order)
+        return _load_order(db, order_id)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
         raise HTTPException(
-            status.HTTP_400_BAD_REQUEST, f"لا يمكن تغيير الحالة من {order.status.value} إلى {data.status.value}"
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            f"حدث خطأ أثناء تحديث حالة الطلب والمخزون: {str(exc)}",
         )
-    if data.status == OrderStatus.CANCELLED:
+
+
+@router.delete("/{order_id}")
+def delete_order(order_id: int, db: DB, user: StaffUser):
+    """Delete an individual order. Protected endpoint for Admins/Managers."""
+    order = db.scalar(select(Order).where(Order.id == order_id).options(selectinload(Order.items)))
+    if not order:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "الطلب غير موجود")
+    if order.status in (OrderStatus.PENDING, OrderStatus.PROCESSING):
         _restock(db, order)
-    order.status = data.status
+    db.delete(order)
     db.commit()
-    return _load_order(db, order_id)
+    return {"message": f"تم حذف الطلب #{order_id} بنجاح", "id": order_id}
+
+
+@router.delete("")
+def clear_all_orders(db: DB, user: ManagerUser):
+    """Manager-only: clear all orders and sales transactions from database."""
+    active_orders = db.scalars(
+        select(Order).where(Order.status.in_((OrderStatus.PENDING, OrderStatus.PROCESSING))).options(selectinload(Order.items))
+    ).all()
+    for o in active_orders:
+        _restock(db, o)
+    db.execute(delete(OrderItem))
+    db.execute(delete(Order))
+    db.commit()
+    return {"message": "تم مسح جميع الطلبات وسجل المبيعات بنجاح"}
+

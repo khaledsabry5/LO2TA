@@ -1,183 +1,239 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import { Alert, Spinner } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
-import { handleEgyptianPhoneChange, STAFF_PASSWORD_REGEX } from '../lib/phone'
+import './Login.css'
 
 export default function Login() {
-  const { login, passwordlessLogin } = useAuth()
+  const { requestOTP, verifyOTP } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Mode: 'customer' (passwordless) vs 'staff' (4-character password)
-  const [mode, setMode] = useState('customer')
-
-  // Customer form
-  const [identifier, setIdentifier] = useState('+20')
-
-  // Staff form
+  // Step 1: 'email' (Email input & Request OTP)
+  // Step 2: 'otp' (6-digit OTP input & Verify)
+  const [step, setStep] = useState(1)
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [otp, setOtp] = useState('')
 
   const [error, setError] = useState('')
+  const [successMsg, setSuccessMsg] = useState('')
   const [busy, setBusy] = useState(false)
+  const [resendTimer, setResendTimer] = useState(0)
 
-  const handleCustomerSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
-    setBusy(true)
-    try {
-      const me = await passwordlessLogin(identifier.trim())
-      navigate(location.state?.from || '/', { replace: true })
-    } catch (err) {
-      setError(err.message || 'تعذر تسجيل الدخول')
-    } finally {
-      setBusy(false)
+  // Countdown effect for OTP resend cooldown
+  useEffect(() => {
+    let interval = null
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1)
+      }, 1000)
     }
-  }
+    return () => clearInterval(interval)
+  }, [resendTimer])
 
-  const handleStaffSubmit = async (e) => {
+  // Step 1: Request OTP code via email
+  const handleRequestOtp = async (e) => {
     e.preventDefault()
     setError('')
+    setSuccessMsg('')
 
-    if (!STAFF_PASSWORD_REGEX.test(password)) {
-      setError('كلمة مرور الإدارة يجب أن تتكون من 4 خانات وحروف أو أرقام إنجليزية فقط')
+    const cleanEmail = email.trim().toLowerCase()
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setError('يرجى إدخال بريد إلكتروني صحيح')
       return
     }
 
     setBusy(true)
     try {
-      const me = await login(email.trim(), password)
-      const staff = me?.role === 'manager' || me?.role === 'admin'
-      navigate(location.state?.from || (staff ? '/dashboard' : '/'), { replace: true })
+      const res = await requestOTP(cleanEmail)
+      setSuccessMsg(res?.message || `تم إرسال رمز التحقق بنجاح إلى ${cleanEmail}`)
+      setStep(2)
+      setResendTimer(60)
     } catch (err) {
-      setError(err.message || 'بيانات الدخول غير صحيحة')
+      setError(err.message || 'تعذر إرسال رمز التحقق، يرجى التأكد من صحة البريد الإلكتروني')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Step 2: Verify OTP code and login
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault()
+    setError('')
+
+    const cleanOtp = otp.trim()
+    if (cleanOtp.length !== 6) {
+      setError('يرجى إدخال رمز التحقق المكون من 6 أرقام كاملاً')
+      return
+    }
+
+    setBusy(true)
+    try {
+      const res = await verifyOTP(email.trim().toLowerCase(), cleanOtp)
+      const userRole = res?.role || res?.user?.role
+      const isStaffOrAdmin = userRole === 'manager' || userRole === 'admin'
+
+      // Redirect based on role
+      const defaultPath = isStaffOrAdmin ? '/dashboard' : '/'
+      const redirectTarget = location.state?.from || defaultPath
+      navigate(redirectTarget, { replace: true })
+    } catch (err) {
+      setError(err.message || 'رمز التحقق غير صحيح أو منتهي الصلاحية')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Allow user to edit their email and return to Step 1
+  const handleChangeEmail = () => {
+    setStep(1)
+    setOtp('')
+    setError('')
+    setSuccessMsg('')
+  }
+
+  // Resend OTP code while on Step 2
+  const handleResendOtp = async () => {
+    if (resendTimer > 0 || busy) return
+    setError('')
+    setBusy(true)
+    try {
+      const res = await requestOTP(email.trim().toLowerCase())
+      setSuccessMsg(res?.message || 'تمت إعادة إرسال رمز التحقق بنجاح')
+      setResendTimer(60)
+    } catch (err) {
+      setError(err.message || 'تعذر إعادة إرسال رمز التحقق')
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <div className="container-x flex justify-center py-10 sm:py-16">
-      <div className="card w-full max-w-md space-y-5 p-6 sm:p-8 animate-fade-up">
-        <div className="text-center">
+    <div className="login-page-container">
+      <div className="login-card">
+        <div className="login-header">
           <Logo />
-          <h1 className="mt-4 text-xl font-extrabold">تسجيل الدخول</h1>
-          <p className="mt-1 text-xs text-ink-muted">اختر نوع الحساب للمتابعة</p>
-        </div>
-
-        {/* Tab switch */}
-        <div className="grid grid-cols-2 gap-2 rounded-2xl bg-cream-100 p-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('customer')
-              setError('')
-            }}
-            className={`rounded-xl py-2.5 text-xs font-extrabold transition ${
-              mode === 'customer' ? 'bg-white text-ink shadow-sm' : 'text-ink-muted hover:text-ink'
-            }`}
-          >
-            دخول العملاء (سريع)
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('staff')
-              setError('')
-            }}
-            className={`rounded-xl py-2.5 text-xs font-extrabold transition ${
-              mode === 'staff' ? 'bg-white text-ink shadow-sm' : 'text-ink-muted hover:text-ink'
-            }`}
-          >
-            دخول الإدارة والمشرفين
-          </button>
+          <h1 className="login-title">
+            {step === 1 ? 'تسجيل الدخول' : 'رمز التحقق (OTP)'}
+          </h1>
+          <p className="login-subtitle">
+            {step === 1
+              ? 'تسجيل دخول موحد وآمن لجميع المستخدمين والإدارة عبر البريد الإلكتروني'
+              : 'أدخل رمز التحقق المكون من 6 أرقام المرسل إلى بريدك الإلكتروني'}
+          </p>
         </div>
 
         {error && <Alert>{error}</Alert>}
+        {successMsg && !error && (
+          <div className="login-success-badge">{successMsg}</div>
+        )}
 
-        {mode === 'customer' ? (
-          /* Passwordless Customer Login Form */
-          <form onSubmit={handleCustomerSubmit} className="space-y-4">
-            <div>
-              <label className="label" htmlFor="customer-identifier">
-                رقم الهاتف المصري أو البريد الإلكتروني
+        {step === 1 ? (
+          /* STEP 1: Single Email Input & Send Code Button */
+          <form onSubmit={handleRequestOtp} className="login-form">
+            <div className="login-field-group">
+              <label className="login-label" htmlFor="login-email">
+                البريد الإلكتروني
               </label>
               <input
-                id="customer-identifier"
+                id="login-email"
+                type="email"
                 required
+                autoFocus
                 dir="ltr"
-                placeholder="+2010xxxxxxxx أو email@example.com"
-                className="input text-end font-mono"
-                value={identifier}
-                onChange={(e) => {
-                  const val = e.target.value
-                  if (val.includes('@')) {
-                    setIdentifier(val)
-                  } else {
-                    setIdentifier(handleEgyptianPhoneChange(val))
-                  }
-                }}
-              />
-              <span className="mt-1 block text-[0.7rem] text-ink-muted">
-                تسجيل دخول آمن وفوري بدون الحاجة لكلمة مرور
-              </span>
-            </div>
-
-            <button id="login-submit-customer" disabled={busy} className="btn-dark w-full">
-              {busy ? <Spinner /> : 'دخول فوري إلى حسابي'}
-            </button>
-
-            <p className="text-center text-sm text-ink-muted">
-              عميل جديد؟{' '}
-              <Link to="/register" state={location.state} className="font-bold text-ink underline">
-                إنشاء حساب جديد
-              </Link>
-            </p>
-          </form>
-        ) : (
-          /* Staff Login Form with 4-character password */
-          <form onSubmit={handleStaffSubmit} className="space-y-4">
-            <div>
-              <label className="label" htmlFor="staff-email">
-                البريد الإلكتروني للإدارة
-              </label>
-              <input
-                id="staff-email"
-                type="text"
-                dir="ltr"
-                required
-                placeholder="admin@lo2ta.com أو admin"
-                className="input text-end"
+                placeholder="example@lo2ta.com"
+                className="login-email-input"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
 
-            <div>
-              <label className="label" htmlFor="staff-password">
-                كلمة المرور (4 خانات)
-              </label>
-              <input
-                id="staff-password"
-                type="password"
-                dir="ltr"
-                required
-                maxLength={4}
-                placeholder="****"
-                className="input text-end font-mono tracking-widest text-lg"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <span className="mt-1 block text-[0.7rem] text-ink-muted">
-                سياسة الأمان: 4 خانات وحروف/أرقام إنجليزية فقط (Regex: ^[a-zA-Z0-9]&#123;4&#125;$)
-              </span>
+            <button
+              id="login-send-otp-btn"
+              type="submit"
+              disabled={busy}
+              className="login-submit-btn"
+            >
+              {busy ? <Spinner /> : 'إرسال رمز التحقق'}
+            </button>
+
+            <div className="login-footer-links">
+              عميل جديد؟{' '}
+              <Link
+                to="/register"
+                state={location.state}
+                className="login-register-link"
+              >
+                إنشاء حساب جديد
+              </Link>
+            </div>
+          </form>
+        ) : (
+          /* STEP 2: 6-digit OTP Input & Verify Button */
+          <form onSubmit={handleVerifyOtp} className="login-form">
+            <div className="otp-sent-banner">
+              <div className="otp-sent-details">
+                <span className="otp-sent-label">تم إرسال الرمز إلى:</span>
+                <span className="otp-sent-email">{email}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleChangeEmail}
+                className="otp-change-email-btn"
+              >
+                تغيير البريد
+              </button>
             </div>
 
-            <button id="login-submit-staff" disabled={busy} className="btn-dark w-full">
-              {busy ? <Spinner /> : 'دخول لوحة التحكم'}
+            <div className="login-field-group">
+              <label className="login-label" htmlFor="login-otp-code">
+                رمز التحقق (6 أرقام)
+              </label>
+              <div className="otp-code-input-wrapper">
+                <input
+                  id="login-otp-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  required
+                  autoFocus
+                  maxLength={6}
+                  placeholder="------"
+                  className="otp-code-input"
+                  value={otp}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 6)
+                    setOtp(val)
+                  }}
+                />
+              </div>
+              <p className="otp-hint-text">
+                ينتهي الرمز خلال 10 دقائق من وقت الإرسال
+              </p>
+            </div>
+
+            <button
+              id="login-verify-otp-btn"
+              type="submit"
+              disabled={busy || otp.length !== 6}
+              className="login-submit-btn"
+            >
+              {busy ? <Spinner /> : 'تأكيد وتسجيل الدخول'}
             </button>
+
+            <div className="otp-resend-wrapper">
+              <button
+                type="button"
+                disabled={resendTimer > 0 || busy}
+                onClick={handleResendOtp}
+                className="otp-resend-btn"
+              >
+                {resendTimer > 0
+                  ? `إعادة إرسال الرمز بعد (${resendTimer} ثانية)`
+                  : 'لم يصلك الرمز؟ إعادة الإرسال'}
+              </button>
+            </div>
           </form>
         )}
       </div>

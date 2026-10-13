@@ -1,0 +1,129 @@
+/* AdminSidebar.css - Dedicated Standalone Stylesheet for Admin Sidebar */
+
+/* ========================================================================= */
+/* Base Admin Sidebar Container & Scrollable Nav (Desktop & Mobile)          */
+/* ========================================================================= */
+
+.admin-drawer-container {
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100%;
+  background-color: #fbfaf7;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 280px;
+  box-sizing: border-box;
+}
+
+.admin-drawer-nav {
+  background-color: #fbfaf7;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 280px;
+  box-sizing: border-box;
+}
+
+/* ========================================================================= */
+/* Mobile Screen Scrolling & Space Optimization (max-width: 768px)          */
+/* ========================================================================= */
+
+@media (max-width: 768px) {
+  /* 1. Remove scroll blockers on sidebar wrapper and immediate parent */
+  .admin-layout-wrapper {
+    overflow: visible;
+  }
+
+  /* 2. Enable Mobile Scrolling on Main Sidebar Menu Container */
+  .admin-drawer-container {
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100%;
+    background-color: #fbfaf7 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 280px !important;
+    box-sizing: border-box;
+    overscroll-behavior-y: contain;
+  }
+
+  /* 3. Navigation items container */
+  .admin-drawer-nav {
+    overflow-y: visible;
+    padding: 0.5rem 0.625rem;
+    padding-bottom: 280px !important;
+    background-color: #fbfaf7;
+    gap: 3px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 4. Compact Header & Logo Area inside Sidebar */
+  .admin-drawer-header {
+    padding: 0.625rem 0.875rem;
+    min-height: auto;
+    flex-shrink: 0;
+  }
+
+  .admin-drawer-header a {
+    margin: 0;
+    padding: 0;
+  }
+
+  .admin-drawer-header svg {
+    max-height: 1.75rem;
+    width: auto;
+  }
+
+  .admin-drawer-close-btn {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+  }
+
+  .admin-drawer-close-btn svg {
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
+  /* 5. Hide ALL Icons inside Nav Links on Mobile */
+  .admin-drawer-link svg,
+  .admin-drawer-link img,
+  .admin-drawer-link i,
+  .admin-drawer-link [class*="lucide"] {
+    display: none !important;
+  }
+
+  /* 6. Compressed Vertical Spacing for Sidebar Links */
+  .admin-drawer-link {
+    padding: 8px 15px;
+    font-size: 14px;
+    line-height: 1.25;
+    gap: 0;
+    border-radius: 0.5rem;
+    text-align: right;
+    justify-content: flex-start;
+    direction: rtl;
+    width: 100%;
+    margin-bottom: 0;
+  }
+
+  /* Active state highlight on mobile */
+  .admin-drawer-link.active {
+    border-inline-end: 3px solid #18181b;
+    background-color: #faedcd;
+    color: #18181b;
+  }
+
+  /* 7. Subtle compact divider */
+  .admin-sidebar-divider {
+    height: 1px;
+    margin: 4px 2px;
+  }
+
+  /* 8. Compact Logout Link */
+  .admin-sidebar-logout-link {
+    padding: 8px 15px;
+    font-size: 14px;
+    text-align: right;
+  }
+}

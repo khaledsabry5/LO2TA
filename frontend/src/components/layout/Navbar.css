@@ -1,0 +1,290 @@
+/* Navbar.css - Standalone styles for Universal Minimalist App-like Navbar */
+
+.app-navbar-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.2s ease, background-color 0.2s ease;
+  direction: rtl;
+}
+
+.app-navbar-header.scrolled {
+  background-color: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.03);
+}
+
+.app-navbar-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+@media (min-width: 640px) {
+  .app-navbar-container {
+    padding: 0 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-navbar-container {
+    padding: 0 2rem;
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Desktop Layout (min-width: 769px): Single Horizontal Row                  */
+/* ------------------------------------------------------------------------- */
+@media (min-width: 769px) {
+  .app-navbar-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    height: 4.5rem; /* 72px */
+  }
+
+  .app-navbar-start {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  .app-navbar-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    user-select: none;
+  }
+
+  .app-navbar-end {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+  }
+
+  .app-navbar-search {
+    display: flex;
+    align-items: center;
+  }
+
+  .app-navbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Desktop Minimalist Search Bar (Inline Underline matching reference picture) */
+  .navbar-minimal-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 130px;
+    margin-inline-end: 0.5rem;
+    transition: width 0.25s ease;
+  }
+
+  .navbar-minimal-search:focus-within {
+    width: 180px;
+  }
+
+  .navbar-minimal-search-input {
+    width: 100%;
+    border: none;
+    border-bottom: 1.5px solid #18181b;
+    border-radius: 0;
+    background-color: transparent;
+    padding: 0.2rem 0.25rem 0.35rem 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #18181b;
+    outline: none;
+    text-align: start;
+    direction: rtl;
+    font-family: inherit;
+    transition: border-bottom-color 0.2s ease;
+  }
+
+  .navbar-minimal-search-input::placeholder {
+    color: #18181b;
+    opacity: 0.95;
+    font-weight: 500;
+  }
+
+  .navbar-minimal-search-input:focus {
+    border-bottom-color: #000000;
+    border-bottom-width: 2px;
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Mobile Layout (max-width: 768px): Two Distinct Vertical Rows              */
+/* ------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .app-navbar-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    height: auto;
+    padding: 0.625rem 0 0.75rem 0;
+  }
+
+  /* Top Row - Right in RTL: Hamburger Menu Icon */
+  .app-navbar-start {
+    order: 1;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  /* Top Row - Center: "Lo2ta" Logo perfectly centered */
+  .app-navbar-center {
+    order: 2;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    user-select: none;
+  }
+
+  /* Dissolve wrapper so Search Bar and Actions participate in flexbox */
+  .app-navbar-end {
+    display: contents;
+  }
+
+  /* Top Row - Left in RTL: User & Cart Icons */
+  .app-navbar-actions {
+    order: 3;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.35rem;
+  }
+
+  /* Bottom Row: Search Bar drops down below, taking 100% width */
+  .app-navbar-search {
+    order: 4;
+    width: 100%;
+    flex-basis: 100%;
+    margin-top: 0.625rem;
+  }
+
+  .navbar-minimal-search {
+    width: 100%;
+    display: flex;
+    align-items: center;
+  }
+
+  .navbar-minimal-search-input {
+    width: 100%;
+    background-color: #f7f6f2;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 0.625rem;
+    padding: 0.55rem 0.875rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #18181b;
+    outline: none;
+    text-align: start;
+    direction: rtl;
+    font-family: inherit;
+    transition: all 0.2s ease;
+  }
+
+  .navbar-minimal-search-input::placeholder {
+    color: #71717a;
+    font-weight: 500;
+  }
+
+  .navbar-minimal-search-input:focus {
+    background-color: #ffffff;
+    border-color: #18181b;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Shared Buttons & Badge Styling                                            */
+/* ------------------------------------------------------------------------- */
+
+.app-navbar-menu-btn {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #18181b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.app-navbar-menu-btn:hover {
+  background-color: #f7f6f2;
+  border-color: rgba(0, 0, 0, 0.05);
+  color: #000000;
+}
+
+.app-navbar-menu-btn:active {
+  transform: scale(0.94);
+}
+
+.app-navbar-action-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #18181b;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.app-navbar-action-btn:hover {
+  background-color: #f7f6f2;
+  border-color: rgba(0, 0, 0, 0.05);
+  color: #000000;
+}
+
+.app-navbar-action-btn:active {
+  transform: scale(0.94);
+}
+
+.app-navbar-cart-badge {
+  position: absolute;
+  top: 0.2rem;
+  inset-inline-end: 0.2rem;
+  display: grid;
+  place-items: center;
+  height: 1.25rem;
+  min-width: 1.25rem;
+  padding: 0 0.25rem;
+  border-radius: 9999px;
+  background-color: #18181b;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+/* Remove default webkit search cancel/decorations */
+.navbar-minimal-search-input::-webkit-search-decoration,
+.navbar-minimal-search-input::-webkit-search-cancel-button,
+.navbar-minimal-search-input::-webkit-search-results-button,
+.navbar-minimal-search-input::-webkit-search-results-decoration {
+  display: none;
+}

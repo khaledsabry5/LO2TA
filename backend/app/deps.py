@@ -20,7 +20,7 @@ from .database import get_db
 from .models import User, UserRole
 from .security import decode_access_token
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/verify-otp")
 
 DB = Annotated[Session, Depends(get_db)]
 

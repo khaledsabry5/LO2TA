@@ -125,7 +125,7 @@ export default function Staff() {
           <div className="border-b border-black/5 bg-cream/40 p-4 font-bold text-ink">
             قائمة فريق الإدارة والتشغيل ({staffList.length})
           </div>
-          <div className="overflow-x-auto">
+          <div className="table-responsive admin-table-scroll-wrapper">
             <table className="w-full text-start text-sm">
               <thead className="border-b border-black/5 bg-cream/20 text-xs font-bold text-ink-muted">
                 <tr>
@@ -207,7 +207,7 @@ export default function Staff() {
                           <button
                             type="button"
                             onClick={() => toggleActive(member)}
-                            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                            className={`table-action-btn ${
                               member.is_active
                                 ? 'bg-sale/10 text-sale hover:bg-sale hover:text-white'
                                 : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-600 hover:text-white'

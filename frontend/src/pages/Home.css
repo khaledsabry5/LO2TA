@@ -1,0 +1,70 @@
+/* Home.css - Dedicated styles for Homepage components */
+
+.home-whatsapp-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-top: 2.75rem;
+  margin-bottom: 1.5rem;
+  padding: 0 1rem;
+}
+
+.home-whatsapp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background-color: #0f3822; /* Luxury Deep Forest Green */
+  color: #faedcd; /* Luxury Champagne Gold */
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
+  padding: 0.875rem 2.25rem;
+  border-radius: 9999px; /* Luxury rounded pill */
+  border: 1px solid rgba(250, 237, 205, 0.3);
+  box-shadow: 0 4px 18px rgba(15, 56, 34, 0.22);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  line-height: 1.5;
+}
+
+.home-whatsapp-btn:hover {
+  background-color: #174e30;
+  color: #fff4d9;
+  border-color: rgba(250, 237, 205, 0.6);
+  box-shadow: 0 8px 25px rgba(15, 56, 34, 0.35);
+  transform: translateY(-2px);
+}
+
+.home-whatsapp-btn:active {
+  transform: translateY(0) scale(0.98);
+  background-color: #0d2f1d;
+}
+
+.home-whatsapp-icon {
+  width: 1.35rem;
+  height: 1.35rem;
+  flex-shrink: 0;
+  fill: #faedcd;
+  transition: transform 0.3s ease;
+}
+
+.home-whatsapp-btn:hover .home-whatsapp-icon {
+  transform: scale(1.08);
+  fill: #fff4d9;
+}
+
+@media (max-width: 640px) {
+  .home-whatsapp-container {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+  }
+
+  .home-whatsapp-btn {
+    width: 100%;
+    max-width: 340px;
+    padding: 0.8125rem 1.5rem;
+    font-size: 0.9375rem;
+  }
+}

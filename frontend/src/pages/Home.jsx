@@ -2,6 +2,8 @@ import { Truck, ShieldCheck, RotateCcw } from 'lucide-react'
 import GenderSections from '../components/home/GenderSections'
 import CategoriesSection from '../components/home/CategoriesSection'
 import LatestArrivals from '../components/home/LatestArrivals'
+import WhatsAppIcon from '../components/icons/WhatsAppIcon'
+import './Home.css'
 
 export default function Home() {
   return (
@@ -13,6 +15,19 @@ export default function Home() {
       <CategoriesSection />
       {/* 3) Latest arrivals (20) */}
       <LatestArrivals />
+
+      {/* WhatsApp CTA Button */}
+      <div className="home-whatsapp-container">
+        <a
+          href="https://wa.me/201035707186"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="home-whatsapp-btn"
+        >
+          <WhatsAppIcon className="home-whatsapp-icon" />
+          <span>تواصل معنا عبر الواتساب</span>
+        </a>
+      </div>
 
       <section className="container-x mt-14">
         <div className="grid grid-cols-3 gap-2 rounded-3xl bg-cream-50 p-4 ring-1 ring-cream sm:gap-6 sm:p-8">

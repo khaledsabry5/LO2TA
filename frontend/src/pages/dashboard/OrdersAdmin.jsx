@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle2, ChevronDown, Clock, MapPin, Package, Phone, Truck, XCircle, AlertCircle } from 'lucide-react'
+import { MapPin, Package, Phone, CheckCircle2, Clock, Truck, AlertOctagon, Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
-import { ORDER_STATUS, NEXT_STATUS, formatDate, money } from '../../lib/format'
+import { ACTIVE_ORDER_STATUS_LIST, ORDER_STATUS_LIST, formatDate, money } from '../../lib/format'
 import { PageLoader, EmptyState, Alert } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
 
@@ -11,6 +11,7 @@ export default function OrdersAdmin() {
   const [statusFilter, setStatusFilter] = useState('')
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
   const [msg, setMsg] = useState('')
 
   const loadOrders = async () => {
@@ -18,9 +19,18 @@ export default function OrdersAdmin() {
     try {
       const data = await api.fulfillment({
         status: statusFilter || undefined,
+        active_only: !statusFilter,
         limit: 100,
       })
-      setOrders(Array.isArray(data) ? data : [])
+      // Active Orders View strictly shows pending and processing orders
+      const activeList = Array.isArray(data)
+        ? data.filter((o) => {
+            const s = String(o.status || '').toUpperCase()
+            if (statusFilter) return s === statusFilter
+            return s === 'PENDING' || s === 'PROCESSING'
+          })
+        : []
+      setOrders(activeList)
     } catch (err) {
       console.error(err)
       setOrders([])
@@ -33,18 +43,88 @@ export default function OrdersAdmin() {
     loadOrders()
   }, [statusFilter])
 
+  const handleDeleteOrder = async (orderId) => {
+    if (!window.confirm(`هل أنت متأكد من حذف الطلب #${orderId} نهائياً؟`)) return
+    setDeletingId(orderId)
+    setMsg('')
+    try {
+      await api.deleteOrder(orderId)
+      setOrders((prev) => prev.filter((o) => o.id !== orderId))
+      setMsg(`تم حذف الطلب #${orderId} بنجاح`)
+    } catch (err) {
+      alert(err.message || 'فشل حذف الطلب')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const handleClearAllOrders = async () => {
+    if (!window.confirm('تحذير: هل أنت متأكد من مسح كافة الطلبات وسجل المبيعات نهائياً؟ لا يمكن التراجع عن هذا الإجراء.')) return
+    setLoading(true)
+    setMsg('')
+    try {
+      await api.clearAllOrders()
+      setOrders([])
+      setMsg('تم مسح جميع بيانات الطلبات وسجل المبيعات بنجاح')
+    } catch (err) {
+      alert(err.message || 'فشل مسح الطلبات')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleStatusChange = async (orderId, newStatus) => {
     setUpdatingId(orderId)
     setMsg('')
     try {
       await api.setOrderStatus(orderId, newStatus)
-      setMsg(`تم تحديث حالة الطلب #${orderId} إلى ${ORDER_STATUS[newStatus].label}`)
-      loadOrders()
+      const normalizedStatus = String(newStatus).toUpperCase()
+
+      // When the admin changes an order to "تم التوصيل" or "لم يتم الاستلام":
+      // Immediately filter out/remove that order from the local React state so it visually disappears from active orders page!
+      if (normalizedStatus === 'DELIVERED') {
+        setOrders((prev) => prev.filter((o) => o.id !== orderId))
+        setMsg(`تم تحديث الطلب #${orderId} بنجاح إلى «تم التوصيل» ونقله إلى سجل المبيعات.`)
+      } else if (normalizedStatus === 'NOT_RECEIVED') {
+        setOrders((prev) => prev.filter((o) => o.id !== orderId))
+        setMsg(`تم تسجيل حالة الطلب #${orderId} كـ «لم يتم الاستلام» وإرجاع المنتجات إلى المخزون بنجاح.`)
+      } else {
+        const matched = ORDER_STATUS_LIST.find((s) => s.value === newStatus)
+        setMsg(`تم تحديث حالة الطلب #${orderId} بنجاح إلى: «${matched?.label || newStatus}»`)
+        setOrders((prev) => {
+          if (statusFilter && statusFilter !== normalizedStatus) {
+            return prev.filter((o) => o.id !== orderId)
+          }
+          return prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
+        })
+      }
     } catch (err) {
       alert(err.message || 'فشل تحديث حالة الطلب')
+      loadOrders()
     } finally {
       setUpdatingId(null)
     }
+  }
+
+  const getStatusSelectClass = (status) => {
+    const s = String(status || '').toUpperCase()
+    if (s === 'PROCESSING' || s === 'CONFIRMED' || s === 'SHIPPED') {
+      return 'status-select-processing'
+    }
+    if (s === 'DELIVERED') {
+      return 'status-select-delivered'
+    }
+    if (s === 'NOT_RECEIVED' || s === 'CANCELLED' || s === 'CANCELED') {
+      return 'status-select-not-received'
+    }
+    return 'status-select-pending'
+  }
+
+  const getStatusValue = (status) => {
+    const s = String(status || '').toUpperCase()
+    if (s === 'CONFIRMED' || s === 'SHIPPED') return 'PROCESSING'
+    if (s === 'CANCELLED' || s === 'CANCELED') return 'NOT_RECEIVED'
+    return s || 'PENDING'
   }
 
   return (
@@ -53,178 +133,182 @@ export default function OrdersAdmin() {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-xl font-extrabold text-ink sm:text-2xl">
-            إدارة الطلبات والشحن
+            إدارة الطلبات النشطة والشحن
           </h1>
           <p className="text-xs text-ink-muted sm:text-sm">
-            {isManager
-              ? 'متابعة وتحديث جميع طلبات المتجر ومعلومات الشحن والتوصيل'
-              : 'تنفيذ وشحن الطلبات النشطة فقط'}
+            عرض الطلبات النشطة (قيد المراجعة وقيد التجهيز) وتحديث مسار التوصيل والمخزون
           </p>
         </div>
 
-        {/* Status filter */}
-        <div className="w-full sm:w-56">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="input text-sm"
-          >
-            <option value="">جميع الطلبات المعروضة</option>
-            <option value="pending">قيد المراجعة</option>
-            <option value="confirmed">مؤكد</option>
-            <option value="shipped">تم الشحن</option>
-            {isManager && (
-              <>
-                <option value="delivered">تم التسليم</option>
-                <option value="cancelled">ملغي</option>
-              </>
-            )}
-          </select>
+        {/* Actions & Status filter */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {isManager && orders.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClearAllOrders}
+              className="btn-danger flex items-center gap-1.5 px-3 py-2 text-xs font-bold"
+              title="مسح كافة الطلبات وسجل المبيعات"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>مسح كافة الطلبات</span>
+            </button>
+          )}
+
+          <div className="w-full sm:w-64">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="input text-sm font-bold"
+              aria-label="تصفية الطلبات النشطة حسب الحالة"
+            >
+              <option value="">جميع الطلبات النشطة ({orders.length})</option>
+              {ACTIVE_ORDER_STATUS_LIST.map((st) => (
+                <option key={st.value} value={st.value}>
+                  {st.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
       {msg && <Alert tone="success">{msg}</Alert>}
 
-      {/* Orders List */}
+      {/* Responsive Orders Table */}
       {loading ? (
         <PageLoader />
       ) : orders.length === 0 ? (
         <EmptyState
           icon={Package}
-          title="لا توجد طلبات في هذه الحالة"
-          text="ستظهر طلبات العملاء فور إتمامها"
+          title={statusFilter ? "لا توجد طلبات في هذه الحالة" : "لا توجد طلبات نشطة حالياً"}
+          text={statusFilter ? "يرجى تغيير معيار التصفية لعرض الطلبات النشطة الأخرى." : "جميع الطلبات إما تم تسليمها ونقلها لسجل المبيعات، أو لم يتم تسجيل طلبات جديدة بعد."}
         />
       ) : (
-        <div className="space-y-4">
-          {orders.map((order) => {
-            const nextOptions = NEXT_STATUS[order.status] || []
-            return (
-              <div
-                key={order.id}
-                className="card overflow-hidden p-5 transition hover:shadow-md animate-fade-up"
-              >
-                {/* Top Info */}
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/5 pb-4">
-                  <div className="flex items-center gap-3">
-                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-cream font-mono font-extrabold text-ink">
-                      #{order.id}
-                    </span>
-                    <div>
-                      <p className="font-extrabold text-ink">
-                        طلب العميل: {order.shipping_name}
-                      </p>
-                      <p className="text-xs text-ink-muted">
-                        تاريخ الطلب: {formatDate(order.created_at)}
-                      </p>
-                    </div>
-                  </div>
+        <div className="card overflow-hidden">
+          <div className="table-responsive admin-table-scroll-wrapper">
+            <table className="w-full text-start text-sm">
+              <thead className="border-b border-black/5 bg-cream/40 text-xs font-bold text-ink">
+                <tr>
+                  <th className="p-3 text-start sm:p-4">رقم الطلب</th>
+                  <th className="p-3 text-start sm:p-4">العميل وبيانات التوصيل</th>
+                  <th className="p-3 text-start sm:p-4">المنتجات المطلوبة</th>
+                  <th className="p-3 text-start sm:p-4">المبلغ الإجمالي</th>
+                  <th className="p-3 text-start sm:p-4">تاريخ الطلب</th>
+                  <th className="p-3 text-start sm:p-4">حالة الطلب</th>
+                  <th className="p-3 text-center sm:p-4">حذف</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black/5">
+                {orders.map((order) => {
+                  const currentValue = getStatusValue(order.status)
+                  const currentClass = getStatusSelectClass(order.status)
 
-                  {/* Status Badge + Status Transition dropdown */}
-                  <div className="flex items-center gap-2">
-                    <span className={`chip ${ORDER_STATUS[order.status].cls}`}>
-                      {ORDER_STATUS[order.status].label}
-                    </span>
+                  return (
+                    <tr key={order.id} className="transition hover:bg-cream-50/60">
+                      {/* 1. Order ID */}
+                      <td className="p-3 sm:p-4 font-mono font-extrabold text-ink align-top">
+                        <span className="grid h-10 w-10 place-items-center rounded-xl bg-cream text-sm">
+                          #{order.id}
+                        </span>
+                      </td>
 
-                    {nextOptions.length > 0 && (
-                      <select
-                        disabled={updatingId === order.id}
-                        defaultValue=""
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            handleStatusChange(order.id, e.target.value)
-                          }
-                        }}
-                        className="rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs font-bold text-ink outline-none hover:bg-cream-100"
-                      >
-                        <option value="" disabled>
-                          تغيير الحالة...
-                        </option>
-                        {nextOptions.map((st) => (
-                          <option key={st} value={st}>
-                            {ORDER_STATUS[st].label}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                </div>
-
-                {/* Shipping Details (What Admin is specifically authorized to see) */}
-                <div className="mt-4 grid gap-4 rounded-xl bg-cream-50/60 p-4 sm:grid-cols-2">
-                  <div className="space-y-1.5 text-xs text-ink">
-                    <p className="font-bold text-ink-muted">بيانات التواصل للشحن:</p>
-                    <p className="flex items-center gap-2 font-bold">
-                      <Phone className="h-3.5 w-3.5 text-azure-dark" />
-                      <span dir="ltr">{order.shipping_phone}</span>
-                    </p>
-                    <p className="flex items-start gap-2">
-                      <MapPin className="h-3.5 w-3.5 shrink-0 text-sale" />
-                      <span>{order.shipping_city} — {order.shipping_address}</span>
-                    </p>
-                  </div>
-
-                  <div className="space-y-1.5 text-xs text-ink">
-                    <p className="font-bold text-ink-muted">ملاحظات والتسليم:</p>
-                    <p className="text-ink-muted">
-                      {order.notes ? `«${order.notes}»` : 'لا توجد ملاحظات إضافية من العميل'}
-                    </p>
-                    <p className="font-bold text-emerald-700">طريقة الدفع: الدفع عند الاستلام</p>
-                  </div>
-                </div>
-
-                {/* Items in order */}
-                <div className="mt-4">
-                  <p className="mb-2 text-xs font-bold text-ink-muted">المنتجات المطلوبة:</p>
-                  <div className="divide-y divide-black/5 rounded-xl border border-black/5 bg-white">
-                    {order.items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between p-3 text-xs sm:text-sm"
-                      >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Package className="h-4 w-4 text-ink-muted" />
-                          <span className="font-bold text-ink">{item.product_name}</span>
-                          <span className="text-ink-muted">× {item.quantity}</span>
-                          {item.selected_size && (
-                            <span className="rounded bg-cream px-1.5 py-0.5 text-[0.7rem] font-extrabold text-ink">
-                              مقاس {item.selected_size}
-                            </span>
+                      {/* 2. Customer & Shipping details */}
+                      <td className="p-3 sm:p-4 align-top">
+                        <div className="space-y-1">
+                          <p className="font-extrabold text-ink">{order.shipping_name}</p>
+                          <p className="flex items-center gap-1.5 text-xs text-ink-muted">
+                            <Phone className="h-3.5 w-3.5 text-azure-dark shrink-0" />
+                            <span dir="ltr">{order.shipping_phone}</span>
+                          </p>
+                          <p className="flex items-start gap-1.5 text-xs text-ink-muted">
+                            <MapPin className="h-3.5 w-3.5 text-sale shrink-0 mt-0.5" />
+                            <span>{order.shipping_city} — {order.shipping_address}</span>
+                          </p>
+                          {order.notes && (
+                            <p className="text-[0.7rem] text-ink-muted italic">
+                              «{order.notes}»
+                            </p>
                           )}
-                          {item.selected_color && (
-                            <span className="rounded bg-cream px-1.5 py-0.5 text-[0.7rem] font-extrabold text-ink">
-                              لون {item.selected_color}
+                        </div>
+                      </td>
+
+                      {/* 3. Products in Order */}
+                      <td className="p-3 sm:p-4 align-top">
+                        <div className="space-y-1.5 text-xs">
+                          {order.items?.map((item) => (
+                            <div key={item.id} className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-bold text-ink">{item.product_name}</span>
+                              <span className="text-ink-muted font-mono">×{item.quantity}</span>
+                              {item.selected_size && (
+                                <span className="rounded bg-cream px-1.5 py-0.5 text-[0.65rem] font-extrabold text-ink">
+                                  مقاس {item.selected_size}
+                                </span>
+                              )}
+                              {item.selected_color && (
+                                <span className="rounded bg-cream px-1.5 py-0.5 text-[0.65rem] font-extrabold text-ink">
+                                  لون {item.selected_color}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+
+                      {/* 4. Total Amount */}
+                      <td className="p-3 sm:p-4 align-top">
+                        <div>
+                          <p className="font-extrabold text-ink">{money(order.total)}</p>
+                          {order.discount_total > 0 && (
+                            <span className="text-[0.7rem] font-bold text-sale">
+                              خصم: -{money(order.discount_total)}
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="font-extrabold text-ink">
-                            {money(item.line_total)}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                      </td>
 
-                {/* Footer total */}
-                <div className="mt-4 flex items-center justify-between border-t border-black/5 pt-3 text-sm">
-                  <div className="flex items-center gap-2 text-xs text-ink-muted">
-                    {order.discount_total > 0 && (
-                      <span className="text-sale">
-                        (خصم مطبق: {money(order.discount_total)})
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-ink-muted">إجمالي الطلب:</span>
-                    <span className="text-base font-extrabold text-ink">
-                      {money(order.total)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+                      {/* 5. Date */}
+                      <td className="p-3 sm:p-4 text-xs text-ink-muted align-top whitespace-nowrap">
+                        {formatDate(order.created_at)}
+                      </td>
+
+                      {/* 6. Order Status Dropdown (Strict 4 statuses with color-coding) */}
+                      <td className="p-3 sm:p-4 admin-status-cell align-top">
+                        <div className="admin-order-status-container">
+                          <select
+                            value={currentValue}
+                            disabled={updatingId === order.id}
+                            onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                            className={`admin-order-status-select ${currentClass}`}
+                            aria-label={`تغيير حالة الطلب رقم ${order.id}`}
+                          >
+                            {ORDER_STATUS_LIST.map((st) => (
+                              <option key={st.value} value={st.value}>
+                                {st.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </td>
+
+                      {/* 7. Delete Action */}
+                      <td className="p-3 sm:p-4 text-center align-top">
+                        <button
+                          type="button"
+                          disabled={deletingId === order.id}
+                          onClick={() => handleDeleteOrder(order.id)}
+                          className="rounded-lg p-2 text-ink-muted transition hover:bg-sale/10 hover:text-sale disabled:opacity-40"
+                          title="حذف الطلب نهائياً"
+                          aria-label={`حذف الطلب رقم ${order.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

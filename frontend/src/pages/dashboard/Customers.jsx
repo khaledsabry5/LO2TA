@@ -82,7 +82,7 @@ export default function Customers() {
         />
       ) : (
         <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="table-responsive admin-table-scroll-wrapper">
             <table className="w-full text-start text-sm">
               <thead className="border-b border-black/5 bg-cream/40 text-xs font-bold text-ink">
                 <tr>
@@ -135,7 +135,7 @@ export default function Customers() {
                       <button
                         type="button"
                         onClick={() => openCustomerDetail(c.id)}
-                        className="rounded-lg bg-cream-100 p-2 text-ink hover:bg-cream transition"
+                        className="table-action-btn bg-cream-100 text-ink hover:bg-cream transition"
                         title="عرض الملف وسجل الطلبات"
                       >
                         <Eye className="h-4 w-4" />

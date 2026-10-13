@@ -13,7 +13,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, PlainSerializer, field_validator
 
-from .models import Category, Gender, MediaType, OrderStatus, UserRole
+from .models import Gender, MediaType, OrderStatus, UserRole
 
 Money = Annotated[Decimal, PlainSerializer(lambda v: float(v), return_type=float, when_used="json")]
 
@@ -58,10 +58,56 @@ class ORM(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# -------------------------------- Departments ------------------------------ #
+class DepartmentOut(ORM):
+    id: int
+    name: str
+    image_url: str
+    created_at: datetime | None = None
+
+
+class DepartmentCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+    image_url: str = Field(min_length=2, max_length=500)
+
+
+class DepartmentUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=100)
+    image_url: str | None = Field(default=None, min_length=2, max_length=500)
+
+
+# -------------------------------- Categories ------------------------------- #
+class CategoryOut(ORM):
+    id: int
+    name: str
+    image_url: str
+    created_at: datetime | None = None
+    products_count: int | None = None
+
+
+class CategoryCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+    image_url: str = Field(min_length=2, max_length=500)
+
+
+class CategoryUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=100)
+    image_url: str | None = Field(default=None, min_length=2, max_length=500)
+
+
 # ------------------------------- Auth / Users ------------------------------ #
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class RequestOTPIn(BaseModel):
+    email: EmailStr
+
+
+class VerifyOTPIn(BaseModel):
+    email: EmailStr
+    otp: str = Field(min_length=4, max_length=10)
 
 
 class CustomerRegister(BaseModel):
@@ -90,12 +136,11 @@ class CustomerPasswordlessLogin(BaseModel):
 
 
 class StaffCreate(BaseModel):
-    """Admins and managers have strict 4-character alphanumeric passwords."""
     email: EmailStr
-    password: str = Field(pattern=STAFF_PASSWORD_REGEX, description="Strict 4-character alphanumeric password")
     full_name: str = Field(min_length=2, max_length=150)
     phone: str | None = Field(default=None, pattern=EGYPT_PHONE_REGEX)
     role: Literal["manager", "admin"]
+    password: str | None = None
 
     @field_validator("phone", mode="before")
     @classmethod
@@ -106,7 +151,7 @@ class StaffCreate(BaseModel):
 class StaffUpdate(BaseModel):
     is_active: bool | None = None
     role: Literal["manager", "admin"] | None = None
-    password: str | None = Field(default=None, pattern=STAFF_PASSWORD_REGEX)
+    password: str | None = None
 
 
 class UserOut(ORM):
@@ -158,7 +203,8 @@ class MediaOut(ORM):
 class ProductBase(BaseModel):
     name: str = Field(min_length=2, max_length=200)
     description: str | None = None
-    category: Category
+    category_id: int
+    department_id: int | None = None
     gender: Gender
     price: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     stock: int = Field(ge=0, default=0)
@@ -174,7 +220,8 @@ class ProductCreate(ProductBase):
 class ProductUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=200)
     description: str | None = None
-    category: Category | None = None
+    category_id: int | None = None
+    department_id: int | None = None
     gender: Gender | None = None
     price: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
     stock: int | None = Field(default=None, ge=0)
@@ -193,7 +240,10 @@ class ProductOut(ORM):
     id: int
     name: str
     description: str | None
-    category: Category
+    category_id: int
+    category: CategoryOut | None = None
+    department_id: int | None = None
+    department: DepartmentOut | None = None
     gender: Gender
     price: Money
     discount_percent: int
@@ -255,12 +305,35 @@ class OrderCreate(BaseModel):
 class OrderStatusUpdate(BaseModel):
     status: OrderStatus
 
+    @field_validator("status", mode="before")
+    @classmethod
+    def validate_status(cls, v):
+        if isinstance(v, str):
+            v_clean = v.strip()
+            v_upper = v_clean.upper()
+            if v_upper in OrderStatus.__members__:
+                return OrderStatus[v_upper]
+            if v_upper in ("CONFIRMED", "SHIPPED"):
+                return OrderStatus.PROCESSING
+            if v_upper in ("CANCELLED", "CANCELED"):
+                return OrderStatus.NOT_RECEIVED
+            # Arabic status translations
+            if "توصيل" in v_clean or "تسليم" in v_clean:
+                return OrderStatus.DELIVERED
+            if "لم يتم" in v_clean or "ملغي" in v_clean or "إلغاء" in v_clean or "الغاء" in v_clean:
+                return OrderStatus.NOT_RECEIVED
+            if "تجهيز" in v_clean or "شحن" in v_clean:
+                return OrderStatus.PROCESSING
+            if "مراجعة" in v_clean:
+                return OrderStatus.PENDING
+        return v
+
 
 class OrderItemOut(ORM):
     id: int
     product_id: int | None
     product_name: str
-    product_category: Category
+    product_category: str
     unit_price: Money
     discount_percent: int
     final_unit_price: Money

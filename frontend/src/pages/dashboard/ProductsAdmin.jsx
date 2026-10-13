@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, Search, Tag, Trash2, Edit3, Image as ImageIcon, AlertCircle } from 'lucide-react'
 import { api } from '../../lib/api'
-import { CATEGORY_LABELS, GENDER_LABELS, money } from '../../lib/format'
+import { CATEGORY_LABELS, GENDER_LABELS, getCategoryName, money } from '../../lib/format'
 import { PageLoader, EmptyState } from '../../components/ui'
 import PriceTag from '../../components/PriceTag'
 
@@ -150,7 +150,7 @@ export default function ProductsAdmin() {
         />
       ) : (
         <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="table-responsive admin-table-scroll-wrapper">
             <table className="w-full text-start text-sm">
               <thead className="border-b border-black/5 bg-cream/40 text-xs font-bold text-ink">
                 <tr>
@@ -186,7 +186,7 @@ export default function ProductsAdmin() {
                       </td>
                       <td className="p-3 sm:p-4">
                         <div className="flex flex-col gap-1">
-                          <span className="font-bold text-ink">{CATEGORY_LABELS[p.category]}</span>
+                          <span className="font-bold text-ink">{getCategoryName(p.category)}</span>
                           <span className="text-xs text-ink-muted">{GENDER_LABELS[p.gender]}</span>
                         </div>
                       </td>
@@ -225,7 +225,7 @@ export default function ProductsAdmin() {
                               setDiscountModal(p)
                               setDiscountVal(p.discount_percent || '')
                             }}
-                            className={`rounded-lg p-2 transition ${
+                            className={`table-action-btn ${
                               p.has_discount
                                 ? 'bg-sale text-white hover:bg-sale-dark'
                                 : 'bg-cream-100 text-ink hover:bg-cream'
@@ -238,7 +238,7 @@ export default function ProductsAdmin() {
                           <Link
                             to={`/dashboard/products/${p.id}`}
                             title="تعديل المنتج"
-                            className="rounded-lg bg-cream-100 p-2 text-ink hover:bg-cream transition"
+                            className="table-action-btn bg-cream-100 text-ink hover:bg-cream transition"
                           >
                             <Edit3 className="h-4 w-4" />
                           </Link>
@@ -248,7 +248,7 @@ export default function ProductsAdmin() {
                             type="button"
                             title="حذف المنتج"
                             onClick={() => handleDelete(p.id, p.name)}
-                            className="rounded-lg bg-sale/10 p-2 text-sale hover:bg-sale hover:text-white transition"
+                            className="table-action-btn bg-sale/10 text-sale hover:bg-sale hover:text-white transition"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>

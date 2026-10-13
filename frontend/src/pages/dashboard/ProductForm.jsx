@@ -14,12 +14,17 @@ export default function ProductForm() {
     name: '',
     description: '',
     gender: 'men',
-    category: 'shoes',
+    department_id: null,
+    category_id: null,
+    category: '',
     price: '',
     stock: '10',
     discount_percent: '0',
     is_active: true,
   })
+
+  const [categoriesList, setCategoriesList] = useState([])
+  const [departmentsList, setDepartmentsList] = useState([])
 
   // Dynamic Shoe Sizes (restricted 30 - 50)
   const [sizes, setSizes] = useState([
@@ -45,16 +50,54 @@ export default function ProductForm() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // Fetch dynamic departments & categories
+  useEffect(() => {
+    api.departments()
+      .then((depts) => {
+        if (Array.isArray(depts)) {
+          setDepartmentsList(depts)
+          if (!isEdit && depts.length > 0) {
+            setForm((prev) => ({
+              ...prev,
+              department_id: prev.department_id || depts[0].id,
+              gender: depts[0].name.includes('نساء') ? 'women' : 'men',
+            }))
+          }
+        }
+      })
+      .catch((err) => console.error('Failed to load departments:', err))
+
+    api.categories()
+      .then((cats) => {
+        if (Array.isArray(cats)) {
+          setCategoriesList(cats)
+          if (!isEdit && cats.length > 0) {
+            setForm((prev) => ({
+              ...prev,
+              category_id: prev.category_id || cats[0].id,
+              category: prev.category || cats[0].name,
+            }))
+          }
+        }
+      })
+      .catch((err) => console.error('Failed to load categories:', err))
+  }, [isEdit])
+
   useEffect(() => {
     if (isEdit) {
       api
         .manageProduct(id)
         .then((p) => {
+          const catId = p.category_id || (p.category?.id) || null
+          const catName = (typeof p.category === 'object' ? p.category?.name : p.category) || ''
+          const deptId = p.department_id || (p.department?.id) || null
           setForm({
             name: p.name,
             description: p.description || '',
             gender: p.gender,
-            category: p.category,
+            department_id: deptId,
+            category_id: catId,
+            category: catName,
             price: String(p.price),
             stock: String(p.stock),
             discount_percent: String(p.discount_percent || 0),
@@ -148,8 +191,9 @@ export default function ProductForm() {
     setSaving(true)
 
     try {
-      const isShoeCategory = form.category === 'shoes'
-      const isShoeOrBag = form.category === 'shoes' || form.category === 'bags'
+      const catStr = form.category || ''
+      const isShoeCategory = catStr === 'shoes' || catStr === 'الأحذية' || catStr.includes('أحذية')
+      const isShoeOrBag = isShoeCategory || catStr === 'bags' || catStr === 'الشنط' || catStr.includes('شنط')
 
       // Calculate stock for shoes from sizes
       let finalStock = parseInt(form.stock, 10) || 0
@@ -161,7 +205,9 @@ export default function ProductForm() {
         name: form.name.trim(),
         description: form.description ? form.description.trim() : null,
         gender: form.gender,
-        category: form.category,
+        department_id: form.department_id || undefined,
+        category_id: form.category_id || undefined,
+        category: form.category || undefined,
         price: parseFloat(form.price),
         stock: finalStock,
         discount_percent: parseInt(form.discount_percent || 0, 10),
@@ -202,10 +248,11 @@ export default function ProductForm() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       {/* Top navigation */}
-      <div className="flex items-center gap-3">
+      <div className="admin-form-header">
         <Link
           to="/dashboard/products"
-          className="grid h-10 w-10 place-items-center rounded-xl bg-white shadow-sm ring-1 ring-black/5 hover:bg-cream-100 transition"
+          className="admin-form-back-btn"
+          aria-label="الرجوع إلى قائمة المنتجات"
         >
           <ArrowRight className="h-5 w-5 rotate-180" />
         </Link>
@@ -222,7 +269,7 @@ export default function ProductForm() {
       {error && <Alert>{error}</Alert>}
 
       {/* Main Form */}
-      <form onSubmit={handleSubmit} className="card space-y-6 p-6 sm:p-8">
+      <form onSubmit={handleSubmit} className="card space-y-6 p-6 sm:p-8 admin-product-form-container">
         {/* Name */}
         <div>
           <label className="label" htmlFor="prod-name">اسم المنتج</label>
@@ -236,62 +283,99 @@ export default function ProductForm() {
           />
         </div>
 
-        {/* Gender Selection */}
+        {/* Dynamic Department Selection (الفئة الرئيسية) */}
         <div>
-          <label className="label">الجنس</label>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setForm((p) => ({ ...p, gender: 'men' }))}
-              className={`rounded-xl border py-3.5 text-center text-sm font-extrabold transition ${
-                form.gender === 'men'
-                  ? 'border-ink bg-ink text-white shadow-sm'
-                  : 'border-black/10 bg-white text-ink hover:bg-cream-100'
-              }`}
-            >
-              رجال
-            </button>
-            <button
-              type="button"
-              onClick={() => setForm((p) => ({ ...p, gender: 'women' }))}
-              className={`rounded-xl border py-3.5 text-center text-sm font-extrabold transition ${
-                form.gender === 'women'
-                  ? 'border-ink bg-ink text-white shadow-sm'
-                  : 'border-black/10 bg-white text-ink hover:bg-cream-100'
-              }`}
-            >
-              نساء
-            </button>
+          <div className="flex items-center justify-between mb-2">
+            <label className="label mb-0">الفئة الرئيسية (القسم)</label>
+            <Link to="/dashboard/departments" className="text-xs font-bold text-ink hover:underline">
+              + إدارة الفئات
+            </Link>
           </div>
-        </div>
-
-        {/* Category Selection */}
-        <div>
-          <label className="label">نوع الفئة</label>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { key: 'shoes', label: 'أحذية' },
-              { key: 'bags', label: 'شنط' },
-              { key: 'watches', label: 'ساعات' },
-            ].map((cat) => (
+          {departmentsList.length > 0 ? (
+            <div className={`grid gap-2.5 ${departmentsList.length <= 2 ? 'grid-cols-2' : departmentsList.length === 3 ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'}`}>
+              {departmentsList.map((dept) => {
+                const isSelected = form.department_id === dept.id || (!form.department_id && ((dept.name.includes('نساء') && form.gender === 'women') || (dept.name.includes('رجال') && form.gender === 'men')))
+                return (
+                  <button
+                    key={dept.id}
+                    type="button"
+                    onClick={() => {
+                      const computedGender = dept.name.includes('نساء') ? 'women' : 'men'
+                      setForm((p) => ({ ...p, department_id: dept.id, gender: computedGender }))
+                    }}
+                    className={`flex items-center justify-center gap-2 rounded-xl border py-3 px-2 text-center text-sm font-extrabold transition ${
+                      isSelected
+                        ? 'border-ink bg-ink text-white shadow-sm ring-2 ring-ink'
+                        : 'border-black/10 bg-white text-ink hover:bg-cream-100'
+                    }`}
+                  >
+                    <span>{dept.name}</span>
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
               <button
-                key={cat.key}
                 type="button"
-                onClick={() => setForm((p) => ({ ...p, category: cat.key }))}
-                className={`rounded-xl border py-3 text-center text-sm font-extrabold transition ${
-                  form.category === cat.key
-                    ? 'border-ink bg-cream text-ink ring-2 ring-ink shadow-sm'
+                onClick={() => setForm((p) => ({ ...p, gender: 'men' }))}
+                className={`rounded-xl border py-3.5 text-center text-sm font-extrabold transition ${
+                  form.gender === 'men'
+                    ? 'border-ink bg-ink text-white shadow-sm'
                     : 'border-black/10 bg-white text-ink hover:bg-cream-100'
                 }`}
               >
-                {cat.label}
+                رجال
               </button>
-            ))}
+              <button
+                type="button"
+                onClick={() => setForm((p) => ({ ...p, gender: 'women' }))}
+                className={`rounded-xl border py-3.5 text-center text-sm font-extrabold transition ${
+                  form.gender === 'women'
+                    ? 'border-ink bg-ink text-white shadow-sm'
+                    : 'border-black/10 bg-white text-ink hover:bg-cream-100'
+                }`}
+              >
+                نساء
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Dynamic Category Selection */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="label mb-0">نوع الفئة / التصنيف</label>
+            <Link to="/dashboard/categories" className="text-xs font-bold text-ink hover:underline">
+              + إدارة التصنيفات
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {categoriesList.map((cat) => {
+              const isSelected = form.category_id === cat.id || form.category === cat.name || form.category === cat.name.toLowerCase()
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, category_id: cat.id, category: cat.name }))}
+                  className={`flex items-center gap-2 rounded-xl border p-2.5 text-start transition ${
+                    isSelected
+                      ? 'border-ink bg-cream text-ink ring-2 ring-ink shadow-sm'
+                      : 'border-black/10 bg-white text-ink hover:bg-cream-100'
+                  }`}
+                >
+                  {cat.image_url && (
+                    <img src={cat.image_url} alt="" className="h-8 w-8 rounded-lg object-cover mix-blend-multiply shrink-0" />
+                  )}
+                  <span className="text-xs font-extrabold truncate">{cat.name}</span>
+                </button>
+              )
+            })}
           </div>
         </div>
 
         {/* DYNAMIC SECTION 1: Shoe Sizes & Inventory (Range 30 to 50) */}
-        {form.category === 'shoes' && (
+        {(form.category === 'shoes' || form.category === 'الأحذية' || (form.category && form.category.includes('أحذية'))) && (
           <div className="rounded-2xl border border-black/10 bg-cream-50/70 p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -305,7 +389,7 @@ export default function ProductForm() {
 
             {/* List of current sizes */}
             {sizes.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                 {sizes.map((s) => (
                   <div
                     key={s.size}
@@ -338,7 +422,7 @@ export default function ProductForm() {
             )}
 
             {/* Add new size row */}
-            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-black/5">
+            <div className="admin-form-size-row">
               <input
                 type="number"
                 min="30"
@@ -368,7 +452,7 @@ export default function ProductForm() {
         )}
 
         {/* DYNAMIC SECTION 2: Available Colors (for Shoes and Bags) */}
-        {(form.category === 'shoes' || form.category === 'bags') && (
+        {(form.category === 'shoes' || form.category === 'bags' || form.category === 'الأحذية' || form.category === 'الشنط' || (form.category && (form.category.includes('أحذية') || form.category.includes('شنط')))) && (
           <div className="rounded-2xl border border-black/10 bg-cream-50/70 p-5 space-y-4">
             <div>
               <h3 className="text-sm font-extrabold text-ink">الألوان المتاحة للمنتج</h3>
@@ -401,7 +485,7 @@ export default function ProductForm() {
             )}
 
             {/* Add color row */}
-            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-black/5">
+            <div className="admin-form-color-row">
               <input
                 type="text"
                 placeholder="اسم اللون (مثال: كحلي / بني)"
@@ -421,7 +505,7 @@ export default function ProductForm() {
         )}
 
         {/* Pricing & Stock */}
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="admin-pricing-grid">
           <div>
             <label className="label" htmlFor="prod-price">السعر الرسمي (ج.م)</label>
             <input
@@ -460,14 +544,14 @@ export default function ProductForm() {
         </div>
 
         {/* Discount Box with #ef233c badge */}
-        <div className="rounded-2xl border border-black/10 bg-cream-50/50 p-4">
+        <div className="admin-discount-box">
           <label className="label" htmlFor="prod-discount">إضافة خصم</label>
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-20 shrink-0 items-center justify-center rounded-xl bg-sale font-mono text-xs font-bold text-white shadow-sm">
+          <div className="admin-discount-row">
+            <div className="admin-discount-badge">
               #ef233c
             </div>
 
-            <div className="relative flex-1">
+            <div className="admin-discount-input-wrapper">
               <input
                 id="prod-discount"
                 type="number"
@@ -497,7 +581,7 @@ export default function ProductForm() {
           <label className="label">صور / فيديوهات المنتج</label>
           <label
             htmlFor="media-upload"
-            className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-black/15 bg-cream-50/70 p-6 text-center transition hover:border-ink hover:bg-cream-100"
+            className="admin-media-dropzone"
           >
             <div className="grid h-12 w-12 place-items-center rounded-full bg-cream text-ink">
               <Upload className="h-6 w-6" />
@@ -519,7 +603,7 @@ export default function ProductForm() {
           {selectedFiles.length > 0 && (
             <div className="mt-3 space-y-2">
               <p className="text-xs font-bold text-ink">الملفات المحددة للرفع ({selectedFiles.length}):</p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 admin-selected-files-list">
                 {selectedFiles.map((file, idx) => (
                   <div
                     key={idx}
@@ -600,7 +684,7 @@ export default function ProductForm() {
         </label>
 
         {/* Submit */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-black/5">
+        <div className="admin-form-actions">
           <Link to="/dashboard/products" className="btn-outline px-6 py-3">
             إلغاء
           </Link>
