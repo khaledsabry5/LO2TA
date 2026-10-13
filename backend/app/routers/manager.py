@@ -3,10 +3,10 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import selectinload
 
-from ..deps import DB, ManagerUser
+from ..deps import DB, ManagerUser, StaffUser
 from ..models import Order, OrderItem, OrderStatus, Product, User, UserRole
 from ..schemas import (
     CustomerDetail,
@@ -66,10 +66,17 @@ def customer_detail(user_id: int, db: DB, _: ManagerUser):
 
 # --------------------------------- Staff ----------------------------------- #
 @router.get("/staff", response_model=list[UserOut])
-def list_staff(db: DB, _: ManagerUser):
+def list_staff(db: DB, _: StaffUser):
     return db.scalars(
         select(User).where(User.role.in_((UserRole.MANAGER, UserRole.ADMIN))).order_by(User.created_at)
     ).all()
+
+
+@router.delete("/staff/{user_id}", status_code=status.HTTP_200_OK)
+def delete_staff(user_id: int, db: DB, current_user: StaffUser):
+    """Delete a staff account (alias for /api/users/{user_id})."""
+    from .users import delete_user
+    return delete_user(user_id=user_id, db=db, current_user=current_user)
 
 
 @router.post("/staff", response_model=UserOut, status_code=status.HTTP_201_CREATED)

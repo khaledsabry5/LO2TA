@@ -119,5 +119,7 @@ export const api = {
   staff: () => request('/manager/staff'),
   createStaff: (data) => request('/manager/staff', { method: 'POST', body: data }),
   updateStaff: (id, data) => request(`/manager/staff/${id}`, { method: 'PATCH', body: data }),
+  deleteStaff: (id) => request(`/users/${id}`, { method: 'DELETE' }),
+  deleteUser: (id) => request(`/users/${id}`, { method: 'DELETE' }),
   sales: (params) => request('/manager/sales', { params }),
 }

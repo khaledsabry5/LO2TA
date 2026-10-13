@@ -22,7 +22,7 @@ export const ADMIN_NAV_LINKS = [
   { to: '/dashboard/orders', label: 'الطلبات', icon: ClipboardList, roles: ['manager', 'admin'] },
   { to: '/dashboard/sales', label: 'سجل المبيعات', icon: Receipt, roles: ['manager'] },
   { to: '/dashboard/customers', label: 'العملاء', icon: Users, roles: ['manager'] },
-  { to: '/dashboard/staff', label: 'المشرفين', icon: UserCog, roles: ['manager'] },
+  { to: '/dashboard/staff', label: 'المشرفين', icon: UserCog, roles: ['manager', 'admin'] },
 ]
 
 export default function AdminSidebar({ drawerOpen, closeDrawer }) {

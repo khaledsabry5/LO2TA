@@ -1,15 +1,21 @@
 import { useEffect, useState } from 'react'
-import { Search, Users, Mail, Phone, ShoppingBag, Eye, Calendar, Package } from 'lucide-react'
+import { Search, Users, Mail, Phone, ShoppingBag, Eye, Calendar, Package, Trash2, AlertTriangle } from 'lucide-react'
 import { api } from '../../lib/api'
 import { formatDate, money } from '../../lib/format'
-import { PageLoader, EmptyState } from '../../components/ui'
+import { PageLoader, EmptyState, Alert, Spinner } from '../../components/ui'
+import { useAuth } from '../../context/AuthContext'
 
 export default function Customers() {
+  const { isManager, isAdmin } = useAuth()
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [selectedUser, setSelectedUser] = useState(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const [deleteModal, setDeleteModal] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [success, setSuccess] = useState('')
 
   const loadCustomers = async () => {
     setLoading(true)
@@ -45,6 +51,22 @@ export default function Customers() {
     }
   }
 
+  const handleDeleteCustomer = async () => {
+    if (!deleteModal) return
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      await api.deleteUser(deleteModal.id)
+      setCustomers((prev) => prev.filter((c) => c.id !== deleteModal.id))
+      setSuccess(`تم حذف حساب العميل "${deleteModal.full_name}" بنجاح`)
+      setDeleteModal(null)
+    } catch (err) {
+      setDeleteError(err.message || 'فشل حذف العميل')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -56,6 +78,8 @@ export default function Customers() {
           عرض بيانات العملاء الشخصية، المشتريات، وإجمالي الإنفاق
         </p>
       </div>
+
+      {success && <Alert tone="success">{success}</Alert>}
 
       {/* Search */}
       <form onSubmit={handleSearchSubmit} className="card max-w-md p-2">
@@ -132,14 +156,29 @@ export default function Customers() {
                       {formatDate(c.created_at)}
                     </td>
                     <td className="p-3 text-end sm:p-4">
-                      <button
-                        type="button"
-                        onClick={() => openCustomerDetail(c.id)}
-                        className="table-action-btn bg-cream-100 text-ink hover:bg-cream transition"
-                        title="عرض الملف وسجل الطلبات"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openCustomerDetail(c.id)}
+                          className="table-action-btn bg-cream-100 text-ink hover:bg-cream transition"
+                          title="عرض الملف وسجل الطلبات"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        {(isManager || isAdmin) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDeleteModal(c)
+                              setDeleteError('')
+                            }}
+                            className="table-action-btn bg-sale/10 text-sale hover:bg-sale hover:text-white transition"
+                            title={`حذف حساب ${c.full_name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -222,6 +261,94 @@ export default function Customers() {
                 className="btn-dark px-6 py-2 text-sm"
               >
                 إغلاق
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Customer Confirmation Modal */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="card w-full max-w-md space-y-4 p-6 animate-fade-up shadow-2xl border-sale/20">
+            <div className="flex items-start gap-4">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-sale/10 text-sale">
+                <Trash2 className="h-6 w-6 stroke-[2.5]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg font-extrabold text-ink">
+                  تأكيد حذف حساب العميل
+                </h2>
+                <p className="mt-1 text-xs text-ink-muted">
+                  هل أنت متأكد من رغبتك في حذف هذا الحساب وجميع البيانات المرتبطة به؟
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!deleting) {
+                    setDeleteModal(null)
+                    setDeleteError('')
+                  }
+                }}
+                disabled={deleting}
+                className="text-ink-muted hover:text-ink text-sm font-bold p-1"
+                aria-label="إغلاق"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-black/10 bg-cream/30 p-3.5 text-xs space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-ink-muted">الاسم:</span>
+                <span className="font-extrabold text-ink">{deleteModal.full_name}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-ink-muted">البريد الإلكتروني:</span>
+                <span className="font-mono text-ink">{deleteModal.email}</span>
+              </div>
+              {deleteModal.phone && (
+                <div className="flex justify-between items-center">
+                  <span className="text-ink-muted">رقم الهاتف:</span>
+                  <span className="font-mono text-ink" dir="ltr">{deleteModal.phone}</span>
+                </div>
+              )}
+            </div>
+
+            {deleteError && <Alert>{deleteError}</Alert>}
+
+            <div className="rounded-xl bg-sale/5 border border-sale/20 p-3 text-xs text-sale font-medium flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-sale" />
+              <span>تحذير: سيتم حذف بيانات تسجيل دخول العميل وفصل حساباته نهائياً.</span>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-black/5">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteModal(null)
+                  setDeleteError('')
+                }}
+                disabled={deleting}
+                className="btn-outline px-4 py-2 text-sm"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteCustomer}
+                disabled={deleting}
+                className="btn bg-sale text-white hover:bg-sale-dark px-5 py-2 text-sm font-bold flex items-center gap-2 shadow-sm"
+              >
+                {deleting ? (
+                  <Spinner />
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    <span>تأكيد الحذف</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

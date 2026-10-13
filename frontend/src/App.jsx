@@ -62,12 +62,15 @@ export default function App() {
             <Route path="departments" element={<AdminDepartments />} />
             <Route path="categories" element={<CategoriesAdmin />} />
             <Route path="orders" element={<OrdersAdmin />} />
+            {/* Staff Management (Manager & Admin) */}
+            <Route element={<RequireRole roles={['manager', 'admin']} redirect="/dashboard/products" />}>
+              <Route path="staff" element={<Staff />} />
+            </Route>
             {/* Manager only */}
             <Route element={<RequireRole roles={['manager']} redirect="/dashboard/products" />}>
               <Route path="overview" element={<Overview />} />
               <Route path="sales" element={<Sales />} />
               <Route path="customers" element={<Customers />} />
-              <Route path="staff" element={<Staff />} />
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>

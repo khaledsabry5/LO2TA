@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react'
-import { Plus, UserCheck, UserX, Shield, ShieldAlert, Mail, Phone, Calendar } from 'lucide-react'
+import { Plus, UserCheck, UserX, Shield, ShieldAlert, Mail, Phone, Calendar, Trash2, AlertTriangle } from 'lucide-react'
 import { api } from '../../lib/api'
 import { ROLE_LABELS, formatDate } from '../../lib/format'
 import { PageLoader, EmptyState, Alert, Spinner } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
 
 export default function Staff() {
-  const { user: currentManager } = useAuth()
+  const { user: currentManager, isManager, isAdmin, isStaff } = useAuth()
   const [staffList, setStaffList] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [deleteModal, setDeleteModal] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const [form, setForm] = useState({
     full_name: '',
     email: '',
@@ -79,6 +82,22 @@ export default function Staff() {
       )
     } catch (err) {
       alert(err.message || 'فشل تحديث حالة الحساب')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteModal) return
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      await api.deleteUser(deleteModal.id)
+      setStaffList((prev) => prev.filter((s) => s.id !== deleteModal.id))
+      setSuccess(`تم حذف حساب المشرف "${deleteModal.full_name}" وجميع بياناته المرتبطة بنجاح`)
+      setDeleteModal(null)
+    } catch (err) {
+      setDeleteError(err.message || 'فشل حذف المشرف')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -204,17 +223,45 @@ export default function Staff() {
                       </td>
                       <td className="p-3 text-end sm:p-4">
                         {!isCurrent && (
-                          <button
-                            type="button"
-                            onClick={() => toggleActive(member)}
-                            className={`table-action-btn ${
-                              member.is_active
-                                ? 'bg-sale/10 text-sale hover:bg-sale hover:text-white'
-                                : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-600 hover:text-white'
-                            }`}
-                          >
-                            {member.is_active ? 'إيقاف الحساب' : 'تفعيل الحساب'}
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleActive(member)}
+                              className={`table-action-btn ${
+                                member.is_active
+                                  ? 'bg-amber-100 text-amber-900 hover:bg-amber-200'
+                                  : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-600 hover:text-white'
+                              }`}
+                              title={member.is_active ? 'إيقاف الحساب مؤقتاً' : 'تفعيل الحساب'}
+                            >
+                              {member.is_active ? 'إيقاف' : 'تفعيل'}
+                            </button>
+
+                            {/* Delete button: ONLY visible and clickable if currently logged-in user has Manager or Admin role */}
+                            {(isManager || isAdmin) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDeleteModal(member)
+                                  setDeleteError('')
+                                }}
+                                disabled={isAdmin && member.role === 'manager'}
+                                title={
+                                  isAdmin && member.role === 'manager'
+                                    ? 'لا يمكن للمشرف حذف حساب مدير'
+                                    : `حذف حساب ${member.full_name} وجميع بياناته`
+                                }
+                                className={`table-action-btn inline-flex items-center gap-1.5 ${
+                                  isAdmin && member.role === 'manager'
+                                    ? 'opacity-40 cursor-not-allowed bg-black/5 text-ink-muted'
+                                    : 'bg-sale/10 text-sale hover:bg-sale hover:text-white font-bold transition'
+                                }`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                <span>حذف</span>
+                              </button>
+                            )}
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -347,6 +394,98 @@ export default function Staff() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="card w-full max-w-md space-y-4 p-6 animate-fade-up shadow-2xl border-sale/20">
+            <div className="flex items-start gap-4">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-sale/10 text-sale">
+                <Trash2 className="h-6 w-6 stroke-[2.5]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg font-extrabold text-ink">
+                  تأكيد حذف الحساب نهائياً
+                </h2>
+                <p className="mt-1 text-xs text-ink-muted">
+                  هل أنت متأكد من رغبتك في حذف هذا الحساب وجميع البيانات المرتبطة به؟
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!deleting) {
+                    setDeleteModal(null)
+                    setDeleteError('')
+                  }
+                }}
+                disabled={deleting}
+                className="text-ink-muted hover:text-ink text-sm font-bold p-1"
+                aria-label="إغلاق"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-black/10 bg-cream/30 p-3.5 text-xs space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-ink-muted">الاسم:</span>
+                <span className="font-extrabold text-ink">{deleteModal.full_name}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-ink-muted">البريد الإلكتروني:</span>
+                <span className="font-mono text-ink">{deleteModal.email}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-ink-muted">الدور / الرتبة:</span>
+                <span className="font-bold text-ink">{ROLE_LABELS[deleteModal.role] || deleteModal.role}</span>
+              </div>
+              {deleteModal.phone && (
+                <div className="flex justify-between items-center">
+                  <span className="text-ink-muted">رقم الهاتف:</span>
+                  <span className="font-mono text-ink" dir="ltr">{deleteModal.phone}</span>
+                </div>
+              )}
+            </div>
+
+            {deleteError && <Alert>{deleteError}</Alert>}
+
+            <div className="rounded-xl bg-sale/5 border border-sale/20 p-3 text-xs text-sale font-medium flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-sale" />
+              <span>تحذير: سيتم حذف هذا الحساب وكافة سجلاته نهائياً من النظام.</span>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-black/5">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteModal(null)
+                  setDeleteError('')
+                }}
+                disabled={deleting}
+                className="btn-outline px-4 py-2 text-sm"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="btn bg-sale text-white hover:bg-sale-dark px-5 py-2 text-sm font-bold flex items-center gap-2 shadow-sm"
+              >
+                {deleting ? (
+                  <Spinner />
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    <span>تأكيد الحذف النهائي</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
