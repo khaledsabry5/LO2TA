@@ -1,1 +1,1 @@
-"""YSN Accessories Store backend."""
+"""YSN Store backend."""

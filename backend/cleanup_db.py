@@ -1,4 +1,4 @@
-"""Deduplication and database cleanup script for YSN Accessories Store.
+"""Deduplication and database cleanup script for YSN Store.
 
 Safely merges duplicate customer accounts based on:
 1. Normalized phone numbers (e.g. +201096417408 vs 010986417408 / 01096417408)

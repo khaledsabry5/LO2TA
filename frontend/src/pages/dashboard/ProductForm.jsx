@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom'
 import { ArrowRight, Upload, X, Trash2, Film, Image as ImageIcon, Plus, Check } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Spinner, Alert, PageLoader } from '../../components/ui'
-import { money } from '../../lib/format'
+import { money, resolveMediaUrl, getCategoryFallbackImage } from '../../lib/format'
 
 export default function ProductForm() {
   const { id } = useParams()
@@ -501,7 +501,15 @@ export default function ProductForm() {
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     {cat.image_url && (
-                      <img src={cat.image_url} alt="" className="h-8 w-8 rounded-lg object-cover mix-blend-multiply shrink-0" />
+                      <img
+                        src={resolveMediaUrl(cat.image_url) || getCategoryFallbackImage(cat)}
+                        alt=""
+                        className="h-8 w-8 rounded-lg object-cover mix-blend-multiply shrink-0"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null
+                          e.currentTarget.src = getCategoryFallbackImage(cat)
+                        }}
+                      />
                     )}
                     <span className="text-xs font-extrabold truncate">{cat.name}</span>
                   </div>

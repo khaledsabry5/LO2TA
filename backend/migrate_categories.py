@@ -27,10 +27,10 @@ def migrate():
 
     # 3. Insert default 4 categories
     defaults = [
-        ("الأحذية", "/images/products/sneaker.jpg"),
-        ("الشنط", "/images/products/handbag.jpg"),
-        ("الساعات", "/images/products/steel-watch.jpg"),
-        ("النظارات والإكسسوارات", "/images/products/sunglasses.jpg"),
+        ("الأحذية", "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80"),
+        ("الشنط", "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=600&q=80"),
+        ("الساعات", "https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=600&q=80"),
+        ("النظارات والإكسسوارات", "https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=600&q=80"),
     ]
 
     for name, img in defaults:

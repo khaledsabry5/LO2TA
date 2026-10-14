@@ -1,4 +1,4 @@
-# YSN Accessories Store — متجر YSN للإكسسوارات
+# YSN Store — متجر YSN
 
 Full-stack e-commerce store (Arabic / RTL / Mobile-first).
 

@@ -11,6 +11,7 @@ import {
   Check,
 } from 'lucide-react'
 import { api } from '../../lib/api'
+import { resolveMediaUrl, getCategoryFallbackImage } from '../../lib/format'
 import { Alert, PageLoader, Spinner } from '../../components/ui'
 import './CategoriesAdmin.css'
 
@@ -352,9 +353,13 @@ export default function CategoriesAdmin() {
                     <td>
                       <div className="category-row-meta">
                         <img
-                          src={cat.image_url || '/images/products/sneaker.jpg'}
+                          src={resolveMediaUrl(cat.image_url) || getCategoryFallbackImage(cat)}
                           alt={cat.name}
                           className="category-thumbnail"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null
+                            e.currentTarget.src = getCategoryFallbackImage(cat)
+                          }}
                         />
                         <div>
                           <p className="category-name-text">{cat.name}</p>
@@ -458,9 +463,13 @@ export default function CategoriesAdmin() {
                 {/* Current Image Indicator */}
                 <div className="category-current-preview-box">
                   <img
-                    src={editImagePreview || editingCategory.image_url}
+                    src={editImagePreview || resolveMediaUrl(editingCategory.image_url) || getCategoryFallbackImage(editingCategory)}
                     alt={editingCategory.name}
                     className="category-current-preview-img"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null
+                      e.currentTarget.src = getCategoryFallbackImage(editingCategory)
+                    }}
                   />
                   <div className="category-current-preview-meta">
                     <span className="category-current-preview-label">

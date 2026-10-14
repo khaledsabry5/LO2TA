@@ -61,7 +61,7 @@ export default function Footer() {
       </div>
 
       <div className="footer-bottom-bar">
-        © {new Date().getFullYear()} YSN Accessories Store. جميع الحقوق محفوظة.
+        © {new Date().getFullYear()} YSN Store. جميع الحقوق محفوظة.
       </div>
     </footer>
   )

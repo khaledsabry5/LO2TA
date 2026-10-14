@@ -1,4 +1,4 @@
-"""Departments (الفئات) CRUD router for YSN Accessories Store."""
+"""Departments (الفئات) CRUD router for YSN Store."""
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import func, select
 

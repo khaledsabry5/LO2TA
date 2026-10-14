@@ -8,7 +8,7 @@ import './Home.css'
 export default function Home() {
   return (
     <>
-      <h1 className="sr-only">YSN للإكسسوارات – أحذية وشنط وساعات للرجال والنساء</h1>
+      <h1 className="sr-only">متجر YSN – أحذية وشنط وساعات للرجال والنساء</h1>
       {/* 1) Gender sections */}
       <GenderSections />
       {/* 2) Categories */}

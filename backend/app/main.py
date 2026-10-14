@@ -15,7 +15,7 @@ from .routers import auth, categories, departments, manager, orders, products, u
 async def lifespan(_: FastAPI):
     try:
         from .database import Base, SessionLocal, engine
-        from .seed import ensure_default_departments, ensure_first_admin, ensure_first_manager, seed_products
+        from .seed import ensure_default_categories, ensure_default_departments, ensure_first_admin, ensure_first_manager, seed_products
 
         # a) Create all database tables using Base.metadata.create_all
         Base.metadata.create_all(bind=engine)
@@ -110,9 +110,10 @@ async def lifespan(_: FastAPI):
             manager = ensure_first_manager(db)
             ensure_first_admin(db)
             ensure_default_departments(db)
+            ensure_default_categories(db)
             seed_products(db, manager)
 
-            # Guard & heal: Guarantee Women's and Men's departments/categories have distinct, permanent images
+            # Guard & heal: Guarantee Women's and Men's departments have distinct, permanent images
             try:
                 all_depts = db.scalars(select(Department)).all()
                 for d in all_depts:
@@ -126,6 +127,27 @@ async def lifespan(_: FastAPI):
                 db.commit()
             except Exception as e:
                 print(f"[WARN] Healing department images skipped: {e}")
+
+            # Guard & heal: Guarantee categories have permanent, non-broken images (especially Shoes / الأحذية)
+            try:
+                all_cats = db.scalars(select(Category)).all()
+                for c in all_cats:
+                    cat_name = (c.name or "").lower()
+                    if any(w in cat_name for w in ("أحذية", "حذاء", "خفية", "كعب", "shoes", "shoe")):
+                        if not c.image_url or c.image_url.startswith("/images/") or "sneaker" in c.image_url.lower():
+                            c.image_url = "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80"
+                    elif any(w in cat_name for w in ("شنط", "حقيب", "محفظ", "bags", "bag")):
+                        if not c.image_url or c.image_url.startswith("/images/") or "handbag" in c.image_url.lower():
+                            c.image_url = "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=600&q=80"
+                    elif any(w in cat_name for w in ("ساع", "watch")):
+                        if not c.image_url or c.image_url.startswith("/images/") or "watch" in c.image_url.lower():
+                            c.image_url = "https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=600&q=80"
+                    elif any(w in cat_name for w in ("نظار", "إكسسوار", "glass")):
+                        if not c.image_url or c.image_url.startswith("/images/") or "sunglasses" in c.image_url.lower():
+                            c.image_url = "https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=600&q=80"
+                db.commit()
+            except Exception as e:
+                print(f"[WARN] Healing category images skipped: {e}")
 
             # Auto-link products to departments based on gender if department_id is null
             try:
@@ -154,7 +176,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="YSN Accessories Store API",
+    description="YSN Store API",
     version="1.0.0",
     lifespan=lifespan,
 )

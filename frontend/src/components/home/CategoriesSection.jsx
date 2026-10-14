@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../lib/api'
+import { resolveMediaUrl, getCategoryFallbackImage } from '../../lib/format'
 import './CategoriesSection.css'
 
 export default function CategoriesSection() {
@@ -51,10 +52,19 @@ export default function CategoriesSection() {
             >
               <div className="category-card-media">
                 <img
-                  src={c.image_url || '/images/products/sneaker.jpg'}
+                  src={resolveMediaUrl(c.image_url) || getCategoryFallbackImage(c)}
                   alt={c.name}
                   loading="lazy"
                   className="category-card-img"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null
+                    const fallback = getCategoryFallbackImage(c)
+                    if (e.currentTarget.src !== fallback) {
+                      e.currentTarget.src = fallback
+                    } else {
+                      e.currentTarget.src = '/images/products/sneaker.jpg'
+                    }
+                  }}
                 />
               </div>
               <div className="category-card-content">

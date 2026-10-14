@@ -65,7 +65,7 @@ def build_otp_bodies(otp_code: str) -> tuple[str, str, str]:
         <p style="font-size: 11px; color: #a8a29e; margin: 0; line-height: 1.4;">
           إذا لم تقم بطلب هذا الرمز، يمكنك تجاهل هذه الرسالة.
           <br>
-          متجر YSN للإكسسوارات &copy; 2026. جميع الحقوق محفوظة.
+          متجر YSN &copy; 2026. جميع الحقوق محفوظة.
         </p>
       </td>
     </tr>
@@ -96,7 +96,7 @@ async def send_otp_email(to_email: str, otp_code: str) -> None:
 
     payload = {
         "sender": {
-            "name": settings.SMTP_FROM_NAME or "YSN Accessories",
+            "name": settings.SMTP_FROM_NAME or "YSN Store",
             "email": settings.SMTP_FROM_EMAIL or "lo2tastore2026@gmail.com",
         },
         "to": [
