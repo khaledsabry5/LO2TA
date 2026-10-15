@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { AlertCircle, Check, ChevronRight, Minus, Plus, ShoppingBag, Truck, Image as ImageIcon } from 'lucide-react'
+import { AlertCircle, Check, ChevronLeft, ChevronRight, Minus, Plus, ShoppingBag, Truck, Image as ImageIcon } from 'lucide-react'
+import useEmblaCarousel from 'embla-carousel-react'
 import PriceTag from '../components/PriceTag'
 import { PageLoader, EmptyState } from '../components/ui'
 import { api } from '../lib/api'
@@ -93,9 +94,38 @@ export default function ProductDetail() {
   const { add } = useCart()
   const [product, setProduct] = useState(null)
   const [error, setError] = useState('')
-  const [active, setActive] = useState(0)
   const [qty, setQty] = useState(1)
   const [added, setAdded] = useState(false)
+
+  // Embla Carousel setup for image gallery
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    loop: false,
+    direction: 'rtl',
+  })
+  const [selectedIndex, setSelectedIndex] = useState(0)
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return
+    setSelectedIndex(emblaApi.selectedScrollSnap())
+  }, [emblaApi])
+
+  useEffect(() => {
+    if (!emblaApi) return
+    emblaApi.on('select', onSelect)
+    emblaApi.on('reInit', onSelect)
+    onSelect()
+    return () => {
+      emblaApi.off('select', onSelect)
+      emblaApi.off('reInit', onSelect)
+    }
+  }, [emblaApi, onSelect])
+
+  const scrollTo = useCallback(
+    (index) => {
+      if (emblaApi) emblaApi.scrollTo(index)
+    },
+    [emblaApi]
+  )
 
   // Product variant states
   const [selectedSize, setSelectedSize] = useState(null)
@@ -106,7 +136,8 @@ export default function ProductDetail() {
     let mounted = true
     setProduct(null)
     setError('')
-    setActive(0)
+    setSelectedIndex(0)
+    if (emblaApi) emblaApi.scrollTo(0)
     setSelectedSize(null)
     setSelectedColor(null)
     setValidationAttempted(false)
@@ -217,7 +248,6 @@ export default function ProductDetail() {
     Array.isArray(product?.media) && product.media.length
       ? product.media
       : [{ id: 0, url: '', media_type: 'image' }]
-  const current = media[active] || media[0]
 
   const whatsappUrl = `https://wa.me/201035707186?text=${encodeURIComponent('مرحباً، أريد الاستفسار عن المنتج: ' + (product?.name || ''))}`
 
@@ -236,67 +266,94 @@ export default function ProductDetail() {
       </nav>
 
       <div className="grid gap-6 lg:grid-cols-2 lg:gap-12">
-        {/* Media Gallery */}
+        {/* Modern Swipeable Image Gallery Carousel */}
         <div>
-          <div className="relative aspect-square overflow-hidden rounded-3xl bg-cream-100">
-            {current.media_type === 'video' ? (
-              <video src={resolveMediaUrl(current.url)} controls playsInline className="h-full w-full object-cover" />
-            ) : current.url ? (
-              <>
-                <img
-                  src={resolveMediaUrl(current.url)}
-                  alt={product.name}
-                  className="h-full w-full object-cover animate-fade-up"
-                  key={current.url}
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none'
-                    e.currentTarget.nextElementSibling?.classList?.remove('hidden')
-                  }}
-                />
-                <div className="hidden grid h-full w-full place-items-center bg-sand-subtle text-ink-muted text-sm p-4 text-center">
-                  <ImageIcon className="h-16 w-16 stroke-1 text-ink-muted/50 mb-2" />
-                  <span>تعذر تحميل الصورة</span>
-                </div>
-              </>
-            ) : (
-              <div className="grid h-full w-full place-items-center bg-sand-subtle text-ink-muted text-sm p-4 text-center">
-                <ImageIcon className="h-16 w-16 stroke-1 text-ink-muted/50 mb-2" />
-                <span>لا توجد صورة للمنتج</span>
+          <div className="group relative aspect-square overflow-hidden rounded-3xl bg-cream-100">
+            {/* Carousel Viewport */}
+            <div className="h-full w-full overflow-hidden" ref={emblaRef}>
+              <div className="flex h-full touch-pan-y">
+                {media.map((m, i) => (
+                  <div key={m.id || i} className="relative h-full min-w-0 flex-[0_0_100%]">
+                    {m.media_type === 'video' ? (
+                      <video
+                        src={resolveMediaUrl(m.url)}
+                        controls
+                        playsInline
+                        className="h-full w-full object-cover select-none"
+                      />
+                    ) : m.url ? (
+                      <>
+                        <img
+                          src={resolveMediaUrl(m.url)}
+                          alt={product.name}
+                          className="h-full w-full object-cover select-none"
+                          draggable={false}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                            e.currentTarget.nextElementSibling?.classList?.remove('hidden')
+                          }}
+                        />
+                        <div className="hidden grid h-full w-full place-items-center bg-sand-subtle text-ink-muted text-sm p-4 text-center select-none">
+                          <ImageIcon className="h-16 w-16 stroke-1 text-ink-muted/50 mb-2" />
+                          <span>تعذر تحميل الصورة</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="grid h-full w-full place-items-center bg-sand-subtle text-ink-muted text-sm p-4 text-center select-none">
+                        <ImageIcon className="h-16 w-16 stroke-1 text-ink-muted/50 mb-2" />
+                        <span>لا توجد صورة للمنتج</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
+
+            {/* Discount Badge */}
             {product.has_discount && (
-              <span className="absolute end-4 top-4 rounded-full bg-sale px-3 py-1 text-sm font-extrabold text-white">
+              <span className="pointer-events-none absolute end-4 top-4 z-10 rounded-full bg-sale px-3 py-1 text-sm font-extrabold text-white shadow-sm">
                 -{product.discount_percent}%
               </span>
             )}
-          </div>
-          {media.length > 1 && (
-            <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto">
-              {media.map((m, i) => (
+
+            {/* Desktop Navigation Chevrons */}
+            {media.length > 1 && (
+              <>
                 <button
-                  key={m.id}
-                  onClick={() => setActive(i)}
-                  className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-xl ring-2 transition ${
-                    i === active ? 'ring-ink' : 'ring-transparent opacity-70 hover:opacity-100'
-                  }`}
+                  type="button"
+                  onClick={() => emblaApi && emblaApi.scrollPrev()}
+                  aria-label="الصورة السابقة"
+                  className="absolute start-3 top-1/2 z-10 -translate-y-1/2 grid h-10 w-10 place-items-center rounded-full bg-white/85 text-ink shadow-md backdrop-blur transition hover:bg-white hover:scale-105 opacity-0 group-hover:opacity-100 focus:opacity-100"
                 >
-                  {m.media_type === 'video' ? (
-                    <video src={resolveMediaUrl(m.url)} muted className="h-full w-full object-cover" />
-                  ) : (
-                    <img
-                      src={resolveMediaUrl(m.url)}
-                      alt=""
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none'
-                        e.currentTarget.nextElementSibling?.classList?.remove('hidden')
-                      }}
-                    />
-                  )}
-                  <div className="hidden grid h-full w-full place-items-center bg-sand-subtle text-ink-muted">
-                    <ImageIcon className="h-5 w-5 stroke-1 text-ink-muted/50" />
-                  </div>
+                  <ChevronRight className="h-5 w-5" />
                 </button>
+                <button
+                  type="button"
+                  onClick={() => emblaApi && emblaApi.scrollNext()}
+                  aria-label="الصورة التالية"
+                  className="absolute end-3 top-1/2 z-10 -translate-y-1/2 grid h-10 w-10 place-items-center rounded-full bg-white/85 text-ink shadow-md backdrop-blur transition hover:bg-white hover:scale-105 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Dots Pagination */}
+          {media.length > 1 && (
+            <div className="mt-3.5 flex items-center justify-center gap-2 py-1">
+              {media.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => scrollTo(i)}
+                  aria-label={`الانتقال إلى الصورة ${i + 1}`}
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    i === selectedIndex
+                      ? 'w-6 bg-ink shadow-xs'
+                      : 'w-2 bg-ink/20 hover:bg-ink/40'
+                  }`}
+                />
               ))}
             </div>
           )}
