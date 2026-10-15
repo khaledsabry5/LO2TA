@@ -22,6 +22,71 @@ const getColorClass = (name) => {
 }
 
 
+const defaultShoeSizes = [
+  { size: 39, stock: 5 },
+  { size: 40, stock: 8 },
+  { size: 41, stock: 10 },
+  { size: 42, stock: 12 },
+  { size: 43, stock: 8 },
+  { size: 44, stock: 5 },
+]
+
+const defaultColors = [
+  { name: 'أسود', code: '#111827' },
+  { name: 'بني', code: '#78350f' },
+  { name: 'بيج', code: '#d4b996' },
+]
+
+function getProductSizes(prod) {
+  if (!prod) return []
+  const allCatNames = [
+    typeof prod.category === 'object' ? (prod.category?.name || '') : String(prod.category || ''),
+    ...(Array.isArray(prod.categories) ? prod.categories.map((c) => c.name || '') : []),
+  ].map((s) => s.toLowerCase())
+
+  const allCatIds = [
+    prod.category_id,
+    prod.category?.id,
+    ...(Array.isArray(prod.categories) ? prod.categories.map((c) => c.id) : []),
+  ].filter(Boolean)
+
+  const isShoes =
+    allCatIds.includes(1) ||
+    allCatNames.some((name) => name === 'shoes' || name.includes('shoe') || name === 'الأحذية' || name.includes('أحذية'))
+
+  const hasExplicitSizes = Array.isArray(prod.sizes) && prod.sizes.length > 0
+  if (hasExplicitSizes) return prod.sizes
+  if (isShoes) return defaultShoeSizes
+  return []
+}
+
+function getProductColors(prod) {
+  if (!prod) return []
+  const allCatNames = [
+    typeof prod.category === 'object' ? (prod.category?.name || '') : String(prod.category || ''),
+    ...(Array.isArray(prod.categories) ? prod.categories.map((c) => c.name || '') : []),
+  ].map((s) => s.toLowerCase())
+
+  const allCatIds = [
+    prod.category_id,
+    prod.category?.id,
+    ...(Array.isArray(prod.categories) ? prod.categories.map((c) => c.id) : []),
+  ].filter(Boolean)
+
+  const isShoes =
+    allCatIds.includes(1) ||
+    allCatNames.some((name) => name === 'shoes' || name.includes('shoe') || name === 'الأحذية' || name.includes('أحذية'))
+
+  const isBags =
+    allCatIds.includes(2) ||
+    allCatNames.some((name) => name === 'bags' || name.includes('bag') || name === 'الشنط' || name.includes('شنط'))
+
+  const hasExplicitColors = Array.isArray(prod.colors) && prod.colors.length > 0
+  if (hasExplicitColors) return prod.colors
+  if (isShoes || isBags) return defaultColors
+  return []
+}
+
 export default function ProductDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -52,6 +117,20 @@ export default function ProductDetail() {
         if (mounted && p) {
           setProduct(p)
           document.title = `${p.name} | متجر YSN`
+
+          // Auto-select size if single option available
+          const pSizes = getProductSizes(p)
+          const pAvailSizes = pSizes.filter((s) => typeof s.stock !== 'number' || s.stock > 0)
+          if (pAvailSizes.length === 1) {
+            setSelectedSize(pAvailSizes[0].size)
+          }
+
+          // Auto-select color if single option available
+          const pColors = getProductColors(p)
+          if (pColors.length === 1) {
+            const singleColor = typeof pColors[0] === 'string' ? pColors[0] : pColors[0].name
+            setSelectedColor(singleColor)
+          }
         }
       } catch (e) {
         if (mounted) {
@@ -66,76 +145,40 @@ export default function ProductDetail() {
     }
   }, [id])
 
-  if (error)
-    return (
-      <div className="container-x py-10">
-        <EmptyState icon={ShoppingBag} title="المنتج غير موجود" text={error} />
-      </div>
-    )
-  if (!product) return <PageLoader />
+  // Derive sizes and colors
+  const sizes = product ? getProductSizes(product) : []
+  const colors = product ? getProductColors(product) : []
 
-  const media =
-    Array.isArray(product?.media) && product.media.length
-      ? product.media
-      : [{ id: 0, url: '', media_type: 'image' }]
-  const current = media[active]
+  const availableSizes = sizes.filter((s) => typeof s.stock !== 'number' || s.stock > 0)
+  const availableColors = colors
 
-  // Dynamic category detection (supporting multiple categories array, category object, ID, or legacy string)
-  const allCatNames = [
-    typeof product.category === 'object' ? (product.category?.name || '') : String(product.category || ''),
-    ...(Array.isArray(product.categories) ? product.categories.map((c) => c.name || '') : []),
-  ].map((s) => s.toLowerCase())
-
-  const allCatIds = [
-    product.category_id,
-    product.category?.id,
-    ...(Array.isArray(product.categories) ? product.categories.map((c) => c.id) : []),
-  ].filter(Boolean)
-
-  const isShoes =
-    allCatIds.includes(1) ||
-    allCatNames.some((name) => name === 'shoes' || name.includes('shoe') || name === 'الأحذية' || name.includes('أحذية'))
-
-  const isBags =
-    allCatIds.includes(2) ||
-    allCatNames.some((name) => name === 'bags' || name.includes('bag') || name === 'الشنط' || name.includes('شنط'))
-
-
-  // Requirement:
-  // - Shoes category: display options for both Size and Color
-  // - Bags category: display options for Color only
-  const needsSize = isShoes
-  const needsColor = isShoes || isBags
-
-  const defaultShoeSizes = [
-    { size: 39, stock: 5 },
-    { size: 40, stock: 8 },
-    { size: 41, stock: 10 },
-    { size: 42, stock: 12 },
-    { size: 43, stock: 8 },
-    { size: 44, stock: 5 },
-  ]
-  const defaultColors = [
-    { name: 'أسود', code: '#111827' },
-    { name: 'بني', code: '#78350f' },
-    { name: 'بيج', code: '#d4b996' },
-  ]
-
-  const sizes = isShoes
-    ? (Array.isArray(product.sizes) && product.sizes.length > 0 ? product.sizes : defaultShoeSizes)
-    : []
-
-  const colors = (isShoes || isBags)
-    ? (Array.isArray(product.colors) && product.colors.length > 0 ? product.colors : defaultColors)
-    : []
+  const needsSize = sizes.length > 0
+  const needsColor = colors.length > 0
 
   const hasSizes = needsSize && sizes.length > 0
   const hasColors = needsColor && colors.length > 0
 
   const sizeMissing = needsSize && !selectedSize
   const colorMissing = needsColor && !selectedColor
-  const inStock = Boolean(product.in_stock || (typeof product.stock === 'number' && product.stock > 0))
+  const inStock = Boolean(product?.in_stock || (typeof product?.stock === 'number' && product?.stock > 0))
   const canAddToCart = inStock && !sizeMissing && !colorMissing
+
+  // 1. Auto-Selection Logic Hook:
+  // Automatically select size and/or color if only one option is available
+  useEffect(() => {
+    if (!product) return
+
+    if (availableSizes.length === 1 && selectedSize !== availableSizes[0].size) {
+      setSelectedSize(availableSizes[0].size)
+    }
+
+    if (availableColors.length === 1) {
+      const singleColor = typeof availableColors[0] === 'string' ? availableColors[0] : availableColors[0].name
+      if (selectedColor !== singleColor) {
+        setSelectedColor(singleColor)
+      }
+    }
+  }, [product, availableSizes, availableColors, selectedSize, selectedColor])
 
   const handleSelectSize = (sz) => {
     setSelectedSize(sz)
@@ -161,6 +204,20 @@ export default function ProductDetail() {
     setAdded(true)
     setTimeout(() => setAdded(false), 1500)
   }
+
+  if (error)
+    return (
+      <div className="container-x py-10">
+        <EmptyState icon={ShoppingBag} title="المنتج غير موجود" text={error} />
+      </div>
+    )
+  if (!product) return <PageLoader />
+
+  const media =
+    Array.isArray(product?.media) && product.media.length
+      ? product.media
+      : [{ id: 0, url: '', media_type: 'image' }]
+  const current = media[active] || media[0]
 
   const whatsappUrl = `https://wa.me/201035707186?text=${encodeURIComponent('مرحباً، أريد الاستفسار عن المنتج: ' + (product?.name || ''))}`
 
