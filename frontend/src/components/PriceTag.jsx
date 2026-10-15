@@ -1,33 +1,44 @@
 import { money } from '../lib/format'
 
 /**
- * Pricing block.
+ * Pricing block:
  *  - No discount: single bold price.
- *  - Active discount: official price struck-through, and DIRECTLY BELOW it a
- *    #ef233c rectangle containing the discount percentage + the final price.
+ *  - Active discount:
+ *    1. Original price displayed above with a gray color and strikethrough.
+ *    2. Final price in plain, bold text without any red background.
+ *    3. Red discount badge exclusively for the discount percentage text.
+ *    4. Final price and red discount badge aligned using flexbox.
  */
 export default function PriceTag({ product, size = 'sm' }) {
   const big = size === 'lg'
 
   if (!product.has_discount) {
-    return <p className={`font-extrabold text-ink ${big ? 'text-2xl' : 'text-base'}`}>{money(product.price)}</p>
+    return (
+      <p className={`font-extrabold text-gray-900 ${big ? 'text-2xl sm:text-3xl' : 'text-base'}`}>
+        {money(product.price)}
+      </p>
+    )
   }
 
   return (
-    <div className="flex flex-col items-start gap-1.5">
-      <span className={`font-medium text-ink-muted line-through decoration-sale/70 ${big ? 'text-base' : 'text-xs'}`}>
+    <div className="flex flex-col items-start gap-1">
+      {/* Original price (gray color + line-through) */}
+      <span className={`font-medium text-gray-400 line-through ${big ? 'text-sm sm:text-base' : 'text-xs'}`}>
         {money(product.price)}
       </span>
-      <div
-        className={`inline-flex items-center overflow-hidden rounded-lg bg-sale text-white shadow-sm shadow-sale/30 ${
-          big ? 'text-base' : 'text-[0.72rem] sm:text-xs'
-        }`}
-        aria-label={`خصم ${product.discount_percent}% السعر بعد الخصم ${money(product.final_price)}`}
-      >
-        <span className={`bg-black/15 font-extrabold ${big ? 'px-3 py-2' : 'px-2 py-1'}`}>
+
+      {/* Final price (plain bold text) and red discount badge aligned with flexbox */}
+      <div className={`flex items-center ${big ? 'gap-2.5' : 'gap-2'}`}>
+        <span className={`font-extrabold text-gray-900 ${big ? 'text-2xl sm:text-3xl' : 'text-base sm:text-lg'}`}>
+          {money(product.final_price)}
+        </span>
+        <span
+          className={`inline-flex items-center rounded bg-red-600 font-bold text-white shadow-xs ${
+            big ? 'px-2.5 py-1 text-xs sm:text-sm rounded-md' : 'px-2 py-0.5 text-xs'
+          }`}
+        >
           خصم {product.discount_percent}%
         </span>
-        <span className={`font-extrabold ${big ? 'px-3 py-2 text-lg' : 'px-2 py-1'}`}>{money(product.final_price)}</span>
       </div>
     </div>
   )
