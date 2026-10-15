@@ -29,6 +29,18 @@ async def lifespan(_: FastAPI):
             except Exception:
                 pass
 
+            # PostgreSQL image_url nullability update
+            try:
+                conn.execute(text("ALTER TABLE categories ALTER COLUMN image_url DROP NOT NULL"))
+                conn.commit()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE departments ALTER COLUMN image_url DROP NOT NULL"))
+                conn.commit()
+            except Exception:
+                pass
+
             if "sqlite" in engine.url.drivername:
                 for col in (
                     "selected_size INTEGER",
@@ -105,7 +117,6 @@ async def lifespan(_: FastAPI):
         with SessionLocal() as db:
             from sqlalchemy import or_, select, text
             from .models import Category, Department, Gender
-            from .seed import MEN_DEPARTMENT_IMAGE, WOMEN_DEPARTMENT_IMAGE
 
             manager = ensure_first_manager(db)
             ensure_first_admin(db)
@@ -113,41 +124,14 @@ async def lifespan(_: FastAPI):
             ensure_default_categories(db)
             seed_products(db, manager)
 
-            # Guard & heal: Guarantee Women's and Men's departments have distinct, permanent images
+            # Clean slate: Wipe any legacy mock, local, or unsplash image URLs so only persistent Cloudinary uploads exist
             try:
-                all_depts = db.scalars(select(Department)).all()
-                for d in all_depts:
-                    name_lower = d.name.lower()
-                    if any(w in name_lower for w in ("نسا", "نساء", "نسائي", "نسائ", "women")):
-                        if not d.image_url or "photo-1507679799987" in d.image_url or "men" in d.image_url.lower():
-                            d.image_url = WOMEN_DEPARTMENT_IMAGE
-                    elif any(w in name_lower for w in ("رجال", "رجالي", "men")):
-                        if not d.image_url or "photo-1508214751196" in d.image_url or "women" in d.image_url.lower():
-                            d.image_url = MEN_DEPARTMENT_IMAGE
+                db.execute(text("DELETE FROM product_media WHERE url NOT LIKE 'https://res.cloudinary.com/%'"))
+                db.execute(text("UPDATE categories SET image_url = NULL WHERE image_url NOT LIKE 'https://res.cloudinary.com/%'"))
+                db.execute(text("UPDATE departments SET image_url = NULL WHERE image_url NOT LIKE 'https://res.cloudinary.com/%'"))
                 db.commit()
             except Exception as e:
-                print(f"[WARN] Healing department images skipped: {e}")
-
-            # Guard & heal: Guarantee categories have permanent, non-broken images (especially Shoes / الأحذية)
-            try:
-                all_cats = db.scalars(select(Category)).all()
-                for c in all_cats:
-                    cat_name = (c.name or "").lower()
-                    if any(w in cat_name for w in ("أحذية", "حذاء", "خفية", "كعب", "shoes", "shoe")):
-                        if not c.image_url or c.image_url.startswith("/images/") or "sneaker" in c.image_url.lower():
-                            c.image_url = "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80"
-                    elif any(w in cat_name for w in ("شنط", "حقيب", "محفظ", "bags", "bag")):
-                        if not c.image_url or c.image_url.startswith("/images/") or "handbag" in c.image_url.lower():
-                            c.image_url = "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=600&q=80"
-                    elif any(w in cat_name for w in ("ساع", "watch")):
-                        if not c.image_url or c.image_url.startswith("/images/") or "watch" in c.image_url.lower():
-                            c.image_url = "https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=600&q=80"
-                    elif any(w in cat_name for w in ("نظار", "إكسسوار", "glass")):
-                        if not c.image_url or c.image_url.startswith("/images/") or "sunglasses" in c.image_url.lower():
-                            c.image_url = "https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=600&q=80"
-                db.commit()
-            except Exception as e:
-                print(f"[WARN] Healing category images skipped: {e}")
+                print(f"[WARN] Clearing legacy image URLs skipped: {e}")
 
             # Auto-link products to departments based on gender if department_id is null
             try:

@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Heart } from 'lucide-react'
+import { Heart, Package } from 'lucide-react'
 import PriceTag from './PriceTag'
-import { CATEGORY_SINGULAR, GENDER_LABELS, firstImage } from '../lib/format'
+import { CATEGORY_SINGULAR, GENDER_LABELS, firstImage, resolveMediaUrl } from '../lib/format'
 
 export default function ProductCard({ product, index = 0 }) {
   const [liked, setLiked] = useState(false)
+  const [imgFailed, setImgFailed] = useState(false)
   const img = firstImage(product)
+  const resolvedImg = resolveMediaUrl(img)
 
   return (
     <Link
@@ -16,15 +18,19 @@ export default function ProductCard({ product, index = 0 }) {
     >
       {/* Media container */}
       <div className="product-card-media">
-        {img ? (
+        {resolvedImg && !imgFailed ? (
           <img
-            src={img}
+            src={resolvedImg}
             alt={product.name}
             loading="lazy"
+            onError={() => setImgFailed(true)}
             className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
           />
         ) : (
-          <div className="grid h-full place-items-center text-ink-muted text-xs">لا توجد صورة</div>
+          <div className="grid h-full w-full place-items-center bg-sand-subtle text-ink-muted text-xs p-4 text-center select-none">
+            <Package className="h-8 w-8 stroke-1 text-ink-muted/50 mb-1" />
+            <span>لا توجد صورة</span>
+          </div>
         )}
 
         {product.has_discount && (

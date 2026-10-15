@@ -33,7 +33,7 @@ def create_department(
     file: UploadFile | None = File(None),
     image_url: str | None = Form(None),
 ):
-    """Staff only: Create a new department with name and cover image upload."""
+    """Staff only: Create a new department with optional cover image upload to Cloudinary."""
     clean_name = name.strip()
     if not clean_name:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "يجب إدخال اسم الفئة")
@@ -45,17 +45,6 @@ def create_department(
     img_path = image_url.strip() if image_url else None
     if file and file.filename:
         img_path = save_department_upload(file)
-
-    if not img_path:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "يجب رفع صورة للفئة أو توفير رابط الصورة")
-
-    # Enforce women/men image isolation: Prevent women's department from using male image
-    if any(w in clean_name.lower() for w in ("نسا", "نساء", "نسائي", "نسائ", "women")):
-        if "photo-1507679799987" in img_path or img_path.endswith("men.jpg") or img_path.endswith("men_category.jpg"):
-            img_path = "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80"
-    elif any(w in clean_name.lower() for w in ("رجال", "رجالي", "men")):
-        if "photo-1508214751196" in img_path or img_path.endswith("women.jpg") or img_path.endswith("women_category.jpg"):
-            img_path = "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80"
 
     department = Department(name=clean_name, image_url=img_path)
     db.add(department)
@@ -74,7 +63,7 @@ def update_department(
     file: UploadFile | None = File(None),
     image_url: str | None = Form(None),
 ):
-    """Staff only: Update an existing department's name and/or cover image."""
+    """Staff only: Update an existing department's name and/or cover image on Cloudinary."""
     dept = db.get(Department, department_id)
     if not dept:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "الفئة غير موجودة")
@@ -93,20 +82,12 @@ def update_department(
 
     if file and file.filename:
         new_img = save_department_upload(file)
-        if dept.image_url and dept.image_url.startswith("/uploads/"):
+        if dept.image_url:
             delete_media_file(dept.image_url)
         dept.image_url = new_img
-    elif image_url and image_url.strip():
-        dept.image_url = image_url.strip()
-
-    # Enforce women/men image isolation on update
-    target_name = (dept.name or "").lower()
-    if any(w in target_name for w in ("نسا", "نساء", "نسائي", "نسائ", "women")):
-        if not dept.image_url or "photo-1507679799987" in dept.image_url or dept.image_url.endswith("men.jpg") or dept.image_url.endswith("men_category.jpg"):
-            dept.image_url = "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80"
-    elif any(w in target_name for w in ("رجال", "رجالي", "men")):
-        if not dept.image_url or "photo-1508214751196" in dept.image_url or dept.image_url.endswith("women.jpg") or dept.image_url.endswith("women_category.jpg"):
-            dept.image_url = "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80"
+    elif image_url is not None:
+        clean_img = image_url.strip()
+        dept.image_url = clean_img if clean_img else None
 
     db.commit()
     db.refresh(dept)
@@ -120,7 +101,7 @@ def delete_department(department_id: int, db: DB, _: StaffUser):
     if not dept:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "الفئة غير موجودة")
 
-    if dept.image_url and dept.image_url.startswith("/uploads/"):
+    if dept.image_url:
         delete_media_file(dept.image_url)
 
     db.delete(dept)

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { AlertCircle, Check, ChevronRight, Minus, Plus, ShoppingBag, Truck } from 'lucide-react'
+import { AlertCircle, Check, ChevronRight, Minus, Plus, ShoppingBag, Truck, Image as ImageIcon } from 'lucide-react'
 import PriceTag from '../components/PriceTag'
 import { PageLoader, EmptyState } from '../components/ui'
 import { api } from '../lib/api'
-import { CATEGORY_LABELS, CATEGORY_SINGULAR, GENDER_LABELS, getCategoryName } from '../lib/format'
+import { CATEGORY_LABELS, CATEGORY_SINGULAR, GENDER_LABELS, getCategoryName, resolveMediaUrl } from '../lib/format'
 import { useCart } from '../context/CartContext'
 import WhatsAppIcon from '../components/icons/WhatsAppIcon'
 import './ProductDetail.css'
@@ -183,15 +183,30 @@ export default function ProductDetail() {
         <div>
           <div className="relative aspect-square overflow-hidden rounded-3xl bg-cream-100">
             {current.media_type === 'video' ? (
-              <video src={current.url} controls playsInline className="h-full w-full object-cover" />
+              <video src={resolveMediaUrl(current.url)} controls playsInline className="h-full w-full object-cover" />
             ) : current.url ? (
-              <img
-                src={current.url}
-                alt={product.name}
-                className="h-full w-full object-cover animate-fade-up"
-                key={current.url}
-              />
-            ) : null}
+              <>
+                <img
+                  src={resolveMediaUrl(current.url)}
+                  alt={product.name}
+                  className="h-full w-full object-cover animate-fade-up"
+                  key={current.url}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                    e.currentTarget.nextElementSibling?.classList?.remove('hidden')
+                  }}
+                />
+                <div className="hidden grid h-full w-full place-items-center bg-sand-subtle text-ink-muted text-sm p-4 text-center">
+                  <ImageIcon className="h-16 w-16 stroke-1 text-ink-muted/50 mb-2" />
+                  <span>تعذر تحميل الصورة</span>
+                </div>
+              </>
+            ) : (
+              <div className="grid h-full w-full place-items-center bg-sand-subtle text-ink-muted text-sm p-4 text-center">
+                <ImageIcon className="h-16 w-16 stroke-1 text-ink-muted/50 mb-2" />
+                <span>لا توجد صورة للمنتج</span>
+              </div>
+            )}
             {product.has_discount && (
               <span className="absolute end-4 top-4 rounded-full bg-sale px-3 py-1 text-sm font-extrabold text-white">
                 -{product.discount_percent}%
@@ -209,10 +224,21 @@ export default function ProductDetail() {
                   }`}
                 >
                   {m.media_type === 'video' ? (
-                    <video src={m.url} muted className="h-full w-full object-cover" />
+                    <video src={resolveMediaUrl(m.url)} muted className="h-full w-full object-cover" />
                   ) : (
-                    <img src={m.url} alt="" className="h-full w-full object-cover" />
+                    <img
+                      src={resolveMediaUrl(m.url)}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                        e.currentTarget.nextElementSibling?.classList?.remove('hidden')
+                      }}
+                    />
                   )}
+                  <div className="hidden grid h-full w-full place-items-center bg-sand-subtle text-ink-muted">
+                    <ImageIcon className="h-5 w-5 stroke-1 text-ink-muted/50" />
+                  </div>
                 </button>
               ))}
             </div>

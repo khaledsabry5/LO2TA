@@ -120,24 +120,13 @@ class Department(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
-    image_url: Mapped[str] = mapped_column(String(500))
+    image_url: Mapped[str | None] = mapped_column(String(500), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     products: Mapped[list[Product]] = relationship(
         secondary=product_department_link,
         back_populates="departments",
     )
-
-    @validates("image_url")
-    def validate_department_image(self, key, value):
-        if value and self.name:
-            if any(w in self.name for w in ("نسا", "نساء", "نسائي", "نسائ", "women")):
-                if "photo-1507679799987" in value or value.endswith("men.jpg") or value.endswith("men_category.jpg"):
-                    return "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80"
-            elif any(w in self.name for w in ("رجال", "رجالي", "men")):
-                if "photo-1508214751196" in value or value.endswith("women.jpg") or value.endswith("women_category.jpg"):
-                    return "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80"
-        return value
 
 
 # --------------------------------------------------------------------------- #
@@ -148,24 +137,13 @@ class Category(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
-    image_url: Mapped[str] = mapped_column(String(500))
+    image_url: Mapped[str | None] = mapped_column(String(500), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     products: Mapped[list[Product]] = relationship(
         secondary=product_category_link,
         back_populates="categories",
     )
-
-    @validates("image_url")
-    def validate_category_image(self, key, value):
-        if value and self.name:
-            if any(w in self.name for w in ("نسا", "نساء", "نسائي", "نسائ", "women")):
-                if "photo-1507679799987" in value or value.endswith("men.jpg") or value.endswith("men_category.jpg"):
-                    return "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80"
-            elif any(w in self.name for w in ("رجال", "رجالي", "men")):
-                if "photo-1508214751196" in value or value.endswith("women.jpg") or value.endswith("women_category.jpg"):
-                    return "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80"
-        return value
 
 
 # --------------------------------------------------------------------------- #

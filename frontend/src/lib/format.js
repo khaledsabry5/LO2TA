@@ -17,38 +17,12 @@ export function resolveMediaUrl(url) {
   return base ? `${base.replace(/\/$/, '')}/${url.replace(/^\//, '')}` : url
 }
 
-export const DEFAULT_CATEGORY_FALLBACKS = {
-  shoes: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80',
-  bags: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=600&q=80',
-  watches: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=600&q=80',
-  glasses: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=600&q=80',
-  default: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80',
+export const DEFAULT_CATEGORY_FALLBACKS = {}
+
+export function getCategoryFallbackImage() {
+  return ''
 }
 
-export function getCategoryFallbackImage(category) {
-  const name = typeof category === 'object' ? (category?.name || '') : String(category || '')
-  const lower = name.toLowerCase()
-  if (
-    lower.includes('حذاء') ||
-    lower.includes('أحذية') ||
-    lower.includes('خفية') ||
-    lower.includes('كعب') ||
-    lower.includes('shoe') ||
-    lower.includes('sneaker')
-  ) {
-    return DEFAULT_CATEGORY_FALLBACKS.shoes
-  }
-  if (lower.includes('شنط') || lower.includes('حقيبة') || lower.includes('محفظة') || lower.includes('bag')) {
-    return DEFAULT_CATEGORY_FALLBACKS.bags
-  }
-  if (lower.includes('ساع') || lower.includes('watch')) {
-    return DEFAULT_CATEGORY_FALLBACKS.watches
-  }
-  if (lower.includes('نظار') || lower.includes('glass') || lower.includes('إكسسوار')) {
-    return DEFAULT_CATEGORY_FALLBACKS.glasses
-  }
-  return DEFAULT_CATEGORY_FALLBACKS.default
-}
 
 export const CATEGORY_LABELS = {
   shoes: 'الأحذية',

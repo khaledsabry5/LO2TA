@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom'
 import { ArrowRight, Upload, X, Trash2, Film, Image as ImageIcon, Plus, Check } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Spinner, Alert, PageLoader } from '../../components/ui'
-import { money, resolveMediaUrl, getCategoryFallbackImage } from '../../lib/format'
+import { money, resolveMediaUrl } from '../../lib/format'
 
 export default function ProductForm() {
   const { id } = useParams()
@@ -500,17 +500,16 @@ export default function ProductForm() {
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    {cat.image_url && (
+                    {cat.image_url ? (
                       <img
-                        src={resolveMediaUrl(cat.image_url) || getCategoryFallbackImage(cat)}
+                        src={resolveMediaUrl(cat.image_url)}
                         alt=""
                         className="h-8 w-8 rounded-lg object-cover mix-blend-multiply shrink-0"
                         onError={(e) => {
-                          e.currentTarget.onerror = null
-                          e.currentTarget.src = getCategoryFallbackImage(cat)
+                          e.currentTarget.style.display = 'none'
                         }}
                       />
-                    )}
+                    ) : null}
                     <span className="text-xs font-extrabold truncate">{cat.name}</span>
                   </div>
                   <span className={`grid h-4 w-4 shrink-0 place-items-center rounded ${isSelected ? 'bg-ink text-white' : 'border border-black/20 bg-transparent'}`}>
@@ -788,10 +787,21 @@ export default function ProductForm() {
                     className="group relative aspect-square overflow-hidden rounded-xl bg-cream-100 ring-1 ring-black/10"
                   >
                     {m.media_type === 'video' ? (
-                      <video src={m.url} className="h-full w-full object-cover" />
+                      <video src={resolveMediaUrl(m.url)} className="h-full w-full object-cover" />
                     ) : (
-                      <img src={m.url} alt="" className="h-full w-full object-cover" />
+                      <img
+                        src={resolveMediaUrl(m.url)}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                          e.currentTarget.nextElementSibling?.classList?.remove('hidden')
+                        }}
+                      />
                     )}
+                    <div className="hidden grid h-full w-full place-items-center bg-sand-subtle text-ink-muted">
+                      <ImageIcon className="h-6 w-6 stroke-1 text-ink-muted/50" />
+                    </div>
                     <button
                       type="button"
                       onClick={() => handleDeleteMedia(m.id)}

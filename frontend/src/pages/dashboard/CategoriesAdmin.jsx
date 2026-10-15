@@ -11,7 +11,7 @@ import {
   Check,
 } from 'lucide-react'
 import { api } from '../../lib/api'
-import { resolveMediaUrl, getCategoryFallbackImage } from '../../lib/format'
+import { resolveMediaUrl } from '../../lib/format'
 import { Alert, PageLoader, Spinner } from '../../components/ui'
 import './CategoriesAdmin.css'
 
@@ -352,15 +352,20 @@ export default function CategoriesAdmin() {
                   <tr key={cat.id}>
                     <td>
                       <div className="category-row-meta">
-                        <img
-                          src={resolveMediaUrl(cat.image_url) || getCategoryFallbackImage(cat)}
-                          alt={cat.name}
-                          className="category-thumbnail"
-                          onError={(e) => {
-                            e.currentTarget.onerror = null
-                            e.currentTarget.src = getCategoryFallbackImage(cat)
-                          }}
-                        />
+                        {cat.image_url ? (
+                          <img
+                            src={resolveMediaUrl(cat.image_url)}
+                            alt={cat.name}
+                            className="category-thumbnail"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none'
+                              e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                            }}
+                          />
+                        ) : null}
+                        <div className={`category-thumbnail grid place-items-center bg-sand-subtle text-ink-muted ${cat.image_url ? 'hidden' : ''}`}>
+                          <FolderTree className="h-4 w-4" />
+                        </div>
                         <div>
                           <p className="category-name-text">{cat.name}</p>
                           <p className="category-id-badge">معرف #{cat.id}</p>
@@ -462,21 +467,26 @@ export default function CategoriesAdmin() {
 
                 {/* Current Image Indicator */}
                 <div className="category-current-preview-box">
-                  <img
-                    src={editImagePreview || resolveMediaUrl(editingCategory.image_url) || getCategoryFallbackImage(editingCategory)}
-                    alt={editingCategory.name}
-                    className="category-current-preview-img"
-                    onError={(e) => {
-                      e.currentTarget.onerror = null
-                      e.currentTarget.src = getCategoryFallbackImage(editingCategory)
-                    }}
-                  />
+                  {editImagePreview || editingCategory.image_url ? (
+                    <img
+                      src={editImagePreview || resolveMediaUrl(editingCategory.image_url)}
+                      alt={editingCategory.name}
+                      className="category-current-preview-img"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                      }}
+                    />
+                  ) : null}
+                  <div className={`category-current-preview-img grid place-items-center bg-sand-subtle text-ink-muted ${editImagePreview || editingCategory.image_url ? 'hidden' : ''}`}>
+                    <FolderTree className="h-6 w-6 stroke-1 text-ink-muted/50" />
+                  </div>
                   <div className="category-current-preview-meta">
                     <span className="category-current-preview-label">
                       {editImagePreview ? 'الصورة الجديدة المحددة:' : 'صورة التصنيف الحالية:'}
                     </span>
                     <span className="category-current-preview-status">
-                      {editImagePreview ? 'جاهزة للحفظ' : 'صورة معتمدة'}
+                      {editImagePreview ? 'جاهزة للحفظ' : (editingCategory.image_url ? 'صورة معتمدة' : 'لا توجد صورة')}
                     </span>
                   </div>
                 </div>

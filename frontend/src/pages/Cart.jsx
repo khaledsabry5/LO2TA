@@ -1,9 +1,32 @@
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react'
+import { Minus, Plus, ShoppingBag, Trash2, Package } from 'lucide-react'
 import { EmptyState } from '../components/ui'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
-import { money } from '../lib/format'
+import { money, resolveMediaUrl } from '../lib/format'
+
+function CartItemThumb({ src, alt }) {
+  const [failed, setFailed] = useState(false)
+  const resolved = resolveMediaUrl(src)
+
+  if (!resolved || failed) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-cream-200 text-ink-muted">
+        <Package className="h-6 w-6 opacity-40" />
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={resolved}
+      alt={alt}
+      onError={() => setFailed(true)}
+      className="h-full w-full object-cover"
+    />
+  )
+}
 
 export default function Cart() {
   const { items, setQty, remove, subtotal, total, savings } = useCart()
@@ -39,7 +62,7 @@ export default function Cart() {
                   to={`/product/${i.id}`}
                   className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-cream-100 sm:h-28 sm:w-28"
                 >
-                  {i.image && <img src={i.image} alt={i.name} className="h-full w-full object-cover" />}
+                  <CartItemThumb src={i.image} alt={i.name} />
                 </Link>
                 <div className="flex flex-1 flex-col">
                   <div className="flex items-start justify-between gap-2">

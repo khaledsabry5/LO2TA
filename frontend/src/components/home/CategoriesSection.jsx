@@ -1,8 +1,32 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { FolderTree } from 'lucide-react'
 import { api } from '../../lib/api'
-import { resolveMediaUrl, getCategoryFallbackImage } from '../../lib/format'
+import { resolveMediaUrl } from '../../lib/format'
 import './CategoriesSection.css'
+
+function CategoryCardMedia({ category }) {
+  const [failed, setFailed] = useState(false)
+  const resolved = resolveMediaUrl(category.image_url)
+
+  if (!resolved || failed) {
+    return (
+      <div className="grid h-full w-full place-items-center bg-sand-subtle text-ink-muted select-none">
+        <FolderTree className="h-10 w-10 stroke-1 text-ink-muted/50" />
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={resolved}
+      alt={category.name}
+      loading="lazy"
+      className="category-card-img"
+      onError={() => setFailed(true)}
+    />
+  )
+}
 
 export default function CategoriesSection() {
   const [categories, setCategories] = useState([])
@@ -51,21 +75,7 @@ export default function CategoriesSection() {
               className="category-card"
             >
               <div className="category-card-media">
-                <img
-                  src={resolveMediaUrl(c.image_url) || getCategoryFallbackImage(c)}
-                  alt={c.name}
-                  loading="lazy"
-                  className="category-card-img"
-                  onError={(e) => {
-                    e.currentTarget.onerror = null
-                    const fallback = getCategoryFallbackImage(c)
-                    if (e.currentTarget.src !== fallback) {
-                      e.currentTarget.src = fallback
-                    } else {
-                      e.currentTarget.src = '/images/products/sneaker.jpg'
-                    }
-                  }}
-                />
+                <CategoryCardMedia category={c} />
               </div>
               <div className="category-card-content">
                 <span className="category-card-title">{c.name}</span>

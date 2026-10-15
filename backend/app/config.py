@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     MAX_IMAGE_MB: int = 8
     MAX_VIDEO_MB: int = 50
 
+    # Cloudinary Storage Configuration
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
+
     # Brevo HTTP API Configuration
     BREVO_API_KEY: str = ""
     SMTP_FROM_EMAIL: str = "lo2tastore2026@gmail.com"

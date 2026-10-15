@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, Search, Tag, Trash2, Edit3, Image as ImageIcon, AlertCircle } from 'lucide-react'
 import { api } from '../../lib/api'
-import { CATEGORY_LABELS, GENDER_LABELS, getCategoryName, money } from '../../lib/format'
+import { CATEGORY_LABELS, GENDER_LABELS, getCategoryName, money, resolveMediaUrl } from '../../lib/format'
 import { PageLoader, EmptyState } from '../../components/ui'
 import PriceTag from '../../components/PriceTag'
 
@@ -170,14 +170,21 @@ export default function ProductsAdmin() {
                     <tr key={p.id} className="transition hover:bg-cream-50/60">
                       <td className="p-3 sm:p-4">
                         <div className="flex items-center gap-3">
-                          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-cream-100 ring-1 ring-black/5">
+                          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-cream-100 ring-1 ring-black/5 relative">
                             {img ? (
-                              <img src={img} alt={p.name} className="h-full w-full object-cover" />
-                            ) : (
-                              <div className="grid h-full w-full place-items-center text-ink-muted">
-                                <ImageIcon className="h-5 w-5" />
-                              </div>
-                            )}
+                              <img
+                                src={resolveMediaUrl(img)}
+                                alt={p.name}
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                  e.currentTarget.nextElementSibling?.classList?.remove('hidden')
+                                }}
+                              />
+                            ) : null}
+                            <div className={`grid h-full w-full place-items-center text-ink-muted ${img ? 'hidden' : ''}`}>
+                              <ImageIcon className="h-5 w-5 stroke-1" />
+                            </div>
                           </div>
                           <div>
                             <p className="font-extrabold text-ink line-clamp-1">{p.name}</p>

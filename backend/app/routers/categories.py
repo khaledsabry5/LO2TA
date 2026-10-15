@@ -85,7 +85,7 @@ def create_category(
     file: UploadFile | None = File(None),
     image_url: str | None = Form(None),
 ):
-    """Staff only: Create a new category with name and image upload."""
+    """Staff only: Create a new category with optional image upload to Cloudinary."""
     clean_name = name.strip()
     if not clean_name:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "يجب إدخال اسم التصنيف")
@@ -94,20 +94,9 @@ def create_category(
     if existing:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "يوجد تصنيف آخر بنفس هذا الاسم بالفعل")
 
-    img_path = image_url
-    if file:
+    img_path = image_url.strip() if image_url else None
+    if file and file.filename:
         img_path = save_category_upload(file)
-
-    if not img_path:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "يجب رفع صورة للتصنيف أو توفير رابط الصورة")
-
-    # Enforce women/men image isolation: Prevent women's category from using male image
-    if any(w in clean_name.lower() for w in ("نسا", "نساء", "نسائي", "نسائ", "women")):
-        if "photo-1507679799987" in img_path or img_path.endswith("men.jpg") or img_path.endswith("men_category.jpg"):
-            img_path = "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80"
-    elif any(w in clean_name.lower() for w in ("رجال", "رجالي", "men")):
-        if "photo-1508214751196" in img_path or img_path.endswith("women.jpg") or img_path.endswith("women_category.jpg"):
-            img_path = "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80"
 
     category = Category(name=clean_name, image_url=img_path)
     db.add(category)
@@ -128,7 +117,7 @@ def update_category(
     file: UploadFile | None = File(None),
     image_url: str | None = Form(None),
 ):
-    """Staff only: Update an existing category name and/or image."""
+    """Staff only: Update an existing category name and/or image on Cloudinary."""
     cat = db.get(Category, category_id)
     if not cat:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "التصنيف غير موجود")
@@ -147,20 +136,12 @@ def update_category(
 
     if file and file.filename:
         new_img = save_category_upload(file)
-        if cat.image_url and cat.image_url.startswith("/uploads/"):
+        if cat.image_url:
             delete_media_file(cat.image_url)
         cat.image_url = new_img
-    elif image_url and image_url.strip():
-        cat.image_url = image_url.strip()
-
-    # Enforce women/men image isolation on update
-    target_name = (cat.name or "").lower()
-    if any(w in target_name for w in ("نسا", "نساء", "نسائي", "نسائ", "women")):
-        if not cat.image_url or "photo-1507679799987" in cat.image_url or cat.image_url.endswith("men.jpg") or cat.image_url.endswith("men_category.jpg"):
-            cat.image_url = "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80"
-    elif any(w in target_name for w in ("رجال", "رجالي", "men")):
-        if not cat.image_url or "photo-1508214751196" in cat.image_url or cat.image_url.endswith("women.jpg") or cat.image_url.endswith("women_category.jpg"):
-            cat.image_url = "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80"
+    elif image_url is not None:
+        clean_img = image_url.strip()
+        cat.image_url = clean_img if clean_img else None
 
     db.commit()
     db.refresh(cat)
@@ -185,7 +166,7 @@ def delete_category(category_id: int, db: DB, _: StaffUser):
             f"لا يمكن حذف التصنيف لأنه مرتبط بـ {products_count} منتج حالياً. قم بنقل أو حذف المنتجات أولاً.",
         )
 
-    if cat.image_url and cat.image_url.startswith("/uploads/"):
+    if cat.image_url:
         delete_media_file(cat.image_url)
 
     db.delete(cat)

@@ -62,37 +62,51 @@ class ORM(BaseModel):
 class DepartmentOut(ORM):
     id: int
     name: str
-    image_url: str
+    image_url: str | None = None
     created_at: datetime | None = None
+
+    @field_validator("image_url", mode="before")
+    @classmethod
+    def empty_str_to_none(cls, v):
+        if not v or not str(v).strip():
+            return None
+        return v
 
 
 class DepartmentCreate(BaseModel):
     name: str = Field(min_length=2, max_length=100)
-    image_url: str = Field(min_length=2, max_length=500)
+    image_url: str | None = Field(default=None, max_length=500)
 
 
 class DepartmentUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=100)
-    image_url: str | None = Field(default=None, min_length=2, max_length=500)
+    image_url: str | None = Field(default=None, max_length=500)
 
 
 # -------------------------------- Categories ------------------------------- #
 class CategoryOut(ORM):
     id: int
     name: str
-    image_url: str
+    image_url: str | None = None
     created_at: datetime | None = None
     products_count: int | None = None
+
+    @field_validator("image_url", mode="before")
+    @classmethod
+    def empty_str_to_none(cls, v):
+        if not v or not str(v).strip():
+            return None
+        return v
 
 
 class CategoryCreate(BaseModel):
     name: str = Field(min_length=2, max_length=100)
-    image_url: str = Field(min_length=2, max_length=500)
+    image_url: str | None = Field(default=None, max_length=500)
 
 
 class CategoryUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=100)
-    image_url: str | None = Field(default=None, min_length=2, max_length=500)
+    image_url: str | None = Field(default=None, max_length=500)
 
 
 # ------------------------------- Auth / Users ------------------------------ #

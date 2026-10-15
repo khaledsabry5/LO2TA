@@ -342,26 +342,24 @@ export default function AdminDepartments() {
               </thead>
               <tbody>
                 {departments.map((dept) => {
-                  const isWomen =
-                    String(dept.name || '').includes('نساء') ||
-                    String(dept.name || '').includes('نسائي') ||
-                    String(dept.name || '').includes('نسا')
-                  const defaultFallback = isWomen
-                    ? 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80'
-                    : 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80'
-
                   return (
                     <tr key={dept.id}>
                       <td>
                         <div className="department-row-meta">
-                          <img
-                            src={resolveMediaUrl(dept.image_url) || defaultFallback}
-                            alt={dept.name}
-                            onError={(e) => {
-                              e.currentTarget.src = isWomen ? '/images/women.jpg' : '/images/men.jpg'
-                            }}
-                            className="department-thumbnail"
-                          />
+                          {dept.image_url ? (
+                            <img
+                              src={resolveMediaUrl(dept.image_url)}
+                              alt={dept.name}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                                e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                              }}
+                              className="department-thumbnail"
+                            />
+                          ) : null}
+                          <div className={`department-thumbnail grid place-items-center bg-sand-subtle text-ink-muted ${dept.image_url ? 'hidden' : ''}`}>
+                            <Layers className="h-4 w-4" />
+                          </div>
                           <div>
                             <p className="department-name-text">{dept.name}</p>
                             <p className="department-id-badge">معرف #{dept.id}</p>
@@ -455,17 +453,26 @@ export default function AdminDepartments() {
 
                 {/* Current Image Indicator */}
                 <div className="department-current-preview-box">
-                  <img
-                    src={editImagePreview || resolveMediaUrl(editingDept.image_url)}
-                    alt={editingDept.name}
-                    className="department-current-preview-img"
-                  />
+                  {editImagePreview || editingDept.image_url ? (
+                    <img
+                      src={editImagePreview || resolveMediaUrl(editingDept.image_url)}
+                      alt={editingDept.name}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                      }}
+                      className="department-current-preview-img"
+                    />
+                  ) : null}
+                  <div className={`department-current-preview-img grid place-items-center bg-sand-subtle text-ink-muted ${editImagePreview || editingDept.image_url ? 'hidden' : ''}`}>
+                    <Layers className="h-6 w-6 stroke-1 text-ink-muted/50" />
+                  </div>
                   <div className="department-current-preview-meta">
                     <span className="department-current-preview-label">
                       {editImagePreview ? 'الصورة الجديدة المحددة:' : 'صورة الغلاف الحالية:'}
                     </span>
                     <span className="department-current-preview-status">
-                      {editImagePreview ? 'جاهزة للحفظ' : 'صورة معتمدة'}
+                      {editImagePreview ? 'جاهزة للحفظ' : (editingDept.image_url ? 'صورة معتمدة' : 'لا توجد صورة')}
                     </span>
                   </div>
                 </div>
