@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from . import models  # noqa: F401  (register models on metadata)
 from .config import settings
 from .database import Base, engine
-from .routers import auth, categories, departments, manager, orders, products, users
+from .routers import auth, categories, departments, expenses, manager, orders, products, users
 
 
 @asynccontextmanager
@@ -72,6 +72,32 @@ async def lifespan(_: FastAPI):
                 pass
             try:
                 conn.execute(text("UPDATE order_items SET cost_price = 0 WHERE cost_price IS NULL"))
+                conn.commit()
+            except Exception:
+                pass
+
+            # Expenses table creation
+            try:
+                if "sqlite" in engine.url.drivername:
+                    conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS expenses (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            amount NUMERIC(10, 2) NOT NULL,
+                            description TEXT NOT NULL,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """))
+                else:
+                    conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS expenses (
+                            id SERIAL PRIMARY KEY,
+                            amount NUMERIC(10, 2) NOT NULL,
+                            description TEXT NOT NULL,
+                            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """))
                 conn.commit()
             except Exception:
                 pass
@@ -209,7 +235,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (auth.router, categories.router, departments.router, products.router, orders.router, manager.router, users.router):
+for r in (auth.router, categories.router, departments.router, products.router, orders.router, manager.router, users.router, expenses.router):
     app.include_router(r, prefix="/api")
 
 upload_dir = Path(settings.UPLOAD_DIR)

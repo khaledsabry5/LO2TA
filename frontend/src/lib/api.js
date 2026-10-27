@@ -120,7 +120,14 @@ export const api = {
   createStaff: (data) => request('/manager/staff', { method: 'POST', body: data }),
   updateStaff: (id, data) => request(`/manager/staff/${id}`, { method: 'PATCH', body: data }),
   deleteStaff: (id) => request(`/users/${id}`, { method: 'DELETE' }),
-  deleteUser: (id) => request(`/users/${id}`, { method: 'DELETE' }),
   sales: (params) => request('/manager/sales', { params }),
   inventoryCost: () => request('/manager/inventory-cost'),
+
+  // expenses & discounts
+  getExpenses: (params) => request('/expenses', { params }),
+  getExpensesSummary: () => request('/expenses/summary'),
+  createExpense: (data) => request('/expenses', { method: 'POST', body: data }),
+  updateExpense: (id, data) => request(`/expenses/${id}`, { method: 'PUT', body: data }),
+  deleteExpense: (id) => request(`/expenses/${id}`, { method: 'DELETE' }),
+  clearAllExpenses: () => request('/expenses', { method: 'DELETE' }),
 }

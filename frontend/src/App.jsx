@@ -22,6 +22,7 @@ import OrdersAdmin from './pages/dashboard/OrdersAdmin'
 import Customers from './pages/dashboard/Customers'
 import Staff from './pages/dashboard/Staff'
 import Sales from './pages/dashboard/Sales'
+import ExpensesAdmin from './pages/dashboard/ExpensesAdmin'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -70,6 +71,7 @@ export default function App() {
             <Route element={<RequireRole roles={['manager']} redirect="/dashboard/products" />}>
               <Route path="overview" element={<Overview />} />
               <Route path="sales" element={<Sales />} />
+              <Route path="expenses" element={<ExpensesAdmin />} />
               <Route path="customers" element={<Customers />} />
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

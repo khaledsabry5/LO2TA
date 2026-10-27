@@ -1,31 +1,36 @@
 import { useEffect, useState } from 'react'
-import { Receipt, Search, Download, Filter, Package, User, Trash2, CheckCircle2 } from 'lucide-react'
+import { Receipt, Search, Download, Filter, Package, User, Trash2, CheckCircle2, ArrowLeft, Coins } from 'lucide-react'
 import { api } from '../../lib/api'
 import { ORDER_STATUS, formatDate, money } from '../../lib/format'
 import { PageLoader, EmptyState } from '../../components/ui'
+import ExpensesAdmin from './ExpensesAdmin'
 
 export default function Sales() {
   const [sales, setSales] = useState([])
   const [totalInventoryCost, setTotalInventoryCost] = useState(0)
+  const [totalExpenses, setTotalExpenses] = useState(0)
+  const [showExpensesModal, setShowExpensesModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
   const loadSales = async () => {
     setLoading(true)
     try {
-      // Strictly fetch only DELIVERED orders as the final archive for completed sales & total inventory cost
-      const [salesData, costData] = await Promise.all([
+      // Strictly fetch only DELIVERED orders as the final archive for completed sales, inventory cost, and expenses
+      const [salesData, costData, expData] = await Promise.all([
         api.sales({
           status: 'DELIVERED',
           limit: 100,
         }),
         api.inventoryCost().catch(() => ({ total_cost: 0 })),
+        api.getExpensesSummary().catch(() => ({ total_amount: 0 })),
       ])
       const deliveredList = Array.isArray(salesData)
         ? salesData.filter((s) => String(s.status || '').toUpperCase() === 'DELIVERED')
         : []
       setSales(deliveredList)
       setTotalInventoryCost(costData?.total_cost || 0)
+      setTotalExpenses(expData?.total_amount || 0)
     } catch (err) {
       console.error(err)
       setSales([])
@@ -84,7 +89,18 @@ export default function Sales() {
 
         {/* Search & Actions */}
         <div className="flex flex-wrap items-center gap-2.5">
-          <div className="relative w-full sm:w-64">
+          {/* Other Expenses & Discounts Button */}
+          <button
+            type="button"
+            onClick={() => setShowExpensesModal(true)}
+            className="btn-outline flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-amber-900 border-amber-300 bg-amber-50/70 hover:bg-amber-100 transition"
+            title="إدارة المصروفات والخصومات الأخرى"
+          >
+            <Coins className="h-4 w-4 text-amber-700" />
+            <span>المصروفات والخصومات الأخرى</span>
+          </button>
+
+          <div className="relative min-w-[200px] flex-1 sm:w-64 sm:flex-initial">
             <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
             <input
               type="text"
@@ -110,7 +126,7 @@ export default function Sales() {
       </div>
 
       {/* Metrics Banner */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card p-4">
           <p className="text-xs font-bold text-ink-muted">إجمالي المبيعات المكتملة</p>
           <p className="mt-1 text-xl font-extrabold text-ink sm:text-2xl">{money(totalSum)}</p>
@@ -120,7 +136,23 @@ export default function Sales() {
           <p className="mt-1 text-xl font-extrabold text-ink sm:text-2xl">{money(totalInventoryCost)}</p>
           <p className="mt-0.5 text-[0.65rem] text-ink-muted">تكلفة جميع المنتجات المرفوعة بالمتجر</p>
         </div>
-        <div className="card p-4 col-span-2 sm:col-span-1">
+        <button
+          type="button"
+          onClick={() => setShowExpensesModal(true)}
+          className="card p-4 text-start transition-all hover:border-amber-400 hover:shadow-md cursor-pointer group bg-gradient-to-br from-amber-50/70 via-white to-amber-100/40 border border-amber-300/80"
+          title="انقر لفتح إدارة المصروفات والخصومات"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-amber-900">المصروفات والخصومات الأخرى</p>
+            <span className="text-[0.65rem] font-bold text-amber-800 bg-amber-200/80 px-2 py-0.5 rounded-full flex items-center gap-1 group-hover:bg-amber-300 transition">
+              إدارة
+              <ArrowLeft className="h-2.5 w-2.5" />
+            </span>
+          </div>
+          <p className="mt-1 text-xl font-extrabold text-amber-900 sm:text-2xl">{money(totalExpenses)}</p>
+          <p className="mt-0.5 text-[0.65rem] text-amber-800/80">انقر لفتح نافذة إدارة النفقات والخصومات</p>
+        </button>
+        <div className="card p-4">
           <p className="text-xs font-bold text-ink-muted">عدد المبيعات المسلمة</p>
           <p className="mt-1 text-xl font-extrabold text-ink sm:text-2xl">{filteredSales.length} عملية مكتملة</p>
         </div>
@@ -200,6 +232,15 @@ export default function Sales() {
             </table>
           </div>
         </div>
+      )}
+
+      {/* Expenses & Discounts Management Modal */}
+      {showExpensesModal && (
+        <ExpensesAdmin
+          isModal
+          onClose={() => setShowExpensesModal(false)}
+          onExpensesUpdated={(newTotal) => setTotalExpenses(newTotal)}
+        />
       )}
     </div>
   )

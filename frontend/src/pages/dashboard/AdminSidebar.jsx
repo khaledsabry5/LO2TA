@@ -10,6 +10,7 @@ import {
   Store,
   LogOut,
   X,
+  Coins,
 } from 'lucide-react'
 import Logo from '../../components/Logo'
 import { useAuth } from '../../context/AuthContext'
@@ -21,6 +22,7 @@ export const ADMIN_NAV_LINKS = [
   { to: '/dashboard/categories', label: 'إدارة التصنيفات', icon: FolderTree, roles: ['manager', 'admin'] },
   { to: '/dashboard/orders', label: 'الطلبات', icon: ClipboardList, roles: ['manager', 'admin'] },
   { to: '/dashboard/sales', label: 'سجل المبيعات', icon: Receipt, roles: ['manager'] },
+  { to: '/dashboard/expenses', label: 'المصروفات والخصومات', icon: Coins, roles: ['manager'] },
   { to: '/dashboard/customers', label: 'العملاء', icon: Users, roles: ['manager'] },
   { to: '/dashboard/staff', label: 'المشرفين', icon: UserCog, roles: ['manager', 'admin'] },
 ]

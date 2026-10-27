@@ -396,3 +396,31 @@ class OrderManagerOut(OrderOut):
 
 class CustomerDetail(UserOut):
     orders: list[OrderOut]
+
+
+# --------------------------------------------------------------------------- #
+# Expenses & Discounts Schemas
+# --------------------------------------------------------------------------- #
+class ExpenseCreate(BaseModel):
+    amount: Decimal = Field(gt=0, max_digits=10, decimal_places=2)
+    description: str = Field(min_length=1, max_length=1000)
+
+
+class ExpenseUpdate(BaseModel):
+    amount: Decimal | None = Field(default=None, gt=0, max_digits=10, decimal_places=2)
+    description: str | None = Field(default=None, min_length=1, max_length=1000)
+
+
+class ExpenseOut(ORM):
+    id: int
+    amount: Money
+    description: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ExpenseListOut(BaseModel):
+    items: list[ExpenseOut]
+    total_amount: Money
+    count: int
+
