@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Receipt, Search, Download, Filter, Package, User, CheckCircle2, ArrowLeft, Coins, Trash2, AlertTriangle, X } from 'lucide-react'
+import { Receipt, Search, Download, Filter, Package, User, CheckCircle2, ArrowLeft, Coins, RotateCcw, AlertTriangle, X } from 'lucide-react'
 import { api } from '../../lib/api'
 import { ORDER_STATUS, formatDate, money } from '../../lib/format'
 import { PageLoader, EmptyState } from '../../components/ui'
@@ -11,8 +11,8 @@ export default function Sales() {
   const [totalInventoryPieces, setTotalInventoryPieces] = useState(0)
   const [totalExpenses, setTotalExpenses] = useState(0)
   const [showExpensesModal, setShowExpensesModal] = useState(false)
-  const [deleteModal, setDeleteModal] = useState(null)
-  const [deleting, setDeleting] = useState(false)
+  const [refundModal, setRefundModal] = useState(null)
+  const [processingRefund, setProcessingRefund] = useState(false)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -47,19 +47,25 @@ export default function Sales() {
     loadSales()
   }, [])
 
-  const handleDeleteSale = async () => {
-    if (!deleteModal) return
-    const orderId = deleteModal.id
-    setDeleting(true)
+  const handleRefundSale = async () => {
+    if (!refundModal) return
+    const orderId = refundModal.id
+    setProcessingRefund(true)
     try {
-      await api.deleteSale(orderId)
-      // Immediately and accurately deduct the deleted record from local state so all metrics recalculate dynamically
+      await api.refundSale(orderId)
+      // 1. Immediately deduct the refunded order from sales list & completed sales total
       setSales((prev) => prev.filter((o) => o.id !== orderId))
-      setDeleteModal(null)
+      setRefundModal(null)
+      // 2. Automatically refresh inventory cost and total pieces to reflect the restocked items
+      const costData = await api.inventoryCost().catch(() => null)
+      if (costData) {
+        setTotalInventoryCost(costData.total_cost || 0)
+        setTotalInventoryPieces(costData.total_pieces || 0)
+      }
     } catch (err) {
-      alert(err.message || 'حدث خطأ أثناء حذف المعاملة')
+      alert(err.message || 'حدث خطأ أثناء معالجة استرجاع الطلب')
     } finally {
-      setDeleting(false)
+      setProcessingRefund(false)
     }
   }
 
@@ -231,11 +237,12 @@ export default function Sales() {
                     <td className="p-3 text-end sm:p-4 whitespace-nowrap">
                       <button
                         type="button"
-                        onClick={() => setDeleteModal(order)}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-sale hover:bg-sale/10 transition ms-auto"
-                        title={`حذف المعاملة #${order.id}`}
+                        onClick={() => setRefundModal(order)}
+                        className="btn-outline inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-amber-900 border-amber-300/80 bg-amber-50/70 hover:bg-amber-100 hover:border-amber-400 transition rounded-xl ms-auto shadow-xs"
+                        title={`استرجاع الطلب #${order.id} وإعادة المنتجات للمخزون`}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <RotateCcw className="h-3.5 w-3.5 text-amber-700" />
+                        <span>استرجاع للمخزون</span>
                       </button>
                     </td>
                   </tr>
@@ -246,18 +253,23 @@ export default function Sales() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {deleteModal && (
+      {/* Refund & Restock Confirmation Modal */}
+      {refundModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-black/10 text-start">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-black/10 text-start">
             <div className="flex items-center justify-between pb-3 border-b border-black/5">
-              <div className="flex items-center gap-2 text-sale">
-                <AlertTriangle className="h-5 w-5" />
-                <h3 className="font-extrabold text-ink text-base">تأكيد حذف المعاملة المالية</h3>
+              <div className="flex items-center gap-2 text-amber-800">
+                <div className="grid h-8 w-8 place-items-center rounded-lg bg-amber-100 text-amber-800">
+                  <RotateCcw className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-ink text-base">استرجاع الطلب وإعادة المنتجات للمخزون</h3>
+                  <p className="text-[0.7rem] text-ink-muted">Refund & Restock Transaction</p>
+                </div>
               </div>
               <button
                 type="button"
-                onClick={() => setDeleteModal(null)}
+                onClick={() => setRefundModal(null)}
                 className="text-ink-muted hover:text-ink"
                 title="إلغاء"
               >
@@ -266,45 +278,78 @@ export default function Sales() {
             </div>
 
             <div className="py-4 space-y-3 text-sm">
-              <p className="text-ink">
-                هل أنت متأكد من رغبتك في حذف المعاملة <span className="font-mono font-extrabold text-sale">#{deleteModal.id}</span> نهائياً من سجل المبيعات؟
+              <p className="text-ink leading-relaxed font-medium">
+                هل أنت متأكد من رغبتك في استرجاع هذه المعاملة؟ سيتم خصم مبلغ الطلب فوراً من إجمالي المبيعات، وإعادة كافة المنتجات والكميات المحددة إلى المخزون النشط لتصبح متاحة للشراء مجدداً.
               </p>
-              <div className="rounded-xl bg-cream/50 p-3 space-y-1.5 text-xs border border-black/5">
+
+              {/* Order Info */}
+              <div className="rounded-xl bg-cream/40 p-3 space-y-1.5 text-xs border border-black/5">
                 <div className="flex justify-between">
-                  <span className="text-ink-muted">اسم العميل:</span>
-                  <span className="font-bold text-ink">{deleteModal.shipping_name}</span>
+                  <span className="text-ink-muted">رقم المعاملة:</span>
+                  <span className="font-mono font-bold text-ink">#{refundModal.id}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-ink-muted">قيمة المعاملة:</span>
-                  <span className="font-extrabold text-sale">{money(deleteModal.total)}</span>
+                  <span className="text-ink-muted">اسم العميل:</span>
+                  <span className="font-bold text-ink">{refundModal.shipping_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-ink-muted">مبلغ الطلب المسترجع:</span>
+                  <span className="font-extrabold text-amber-800">{money(refundModal.total)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-ink-muted">تاريخ المعاملة:</span>
-                  <span className="font-mono text-ink">{formatDate(deleteModal.created_at)}</span>
+                  <span className="font-mono text-ink">{formatDate(refundModal.created_at)}</span>
                 </div>
               </div>
-              <p className="text-[0.72rem] text-ink-muted font-bold">
-                ⚠️ سيتم خصم مبلغ <span className="font-extrabold text-ink">{money(deleteModal.total)}</span> فوراً وتلقائياً من «إجمالي المبيعات المكتملة».
+
+              {/* Items to be returned */}
+              <div>
+                <p className="text-xs font-bold text-ink mb-1.5">المنتجات التي ستُعاد إلى المخزون بالمقاس واللون:</p>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pe-1">
+                  {refundModal.items?.map((it) => (
+                    <div
+                      key={it.id}
+                      className="flex items-center justify-between bg-cream/30 p-2 rounded-lg border border-black/5 text-xs"
+                    >
+                      <div>
+                        <p className="font-bold text-ink line-clamp-1">{it.product_name}</p>
+                        <p className="text-[0.7rem] text-ink-muted">
+                          {it.selected_size ? `مقاس: ${it.selected_size}` : ''}
+                          {it.selected_size && it.selected_color ? ' • ' : ''}
+                          {it.selected_color ? `لون: ${it.selected_color}` : ''}
+                          {!it.selected_size && !it.selected_color ? 'منتج عام' : ''}
+                        </p>
+                      </div>
+                      <span className="font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-300 text-[0.72rem] shrink-0">
+                        + {it.quantity} قطعة للمخزون
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-[0.72rem] text-ink-muted font-bold bg-amber-500/10 p-2 rounded-lg border border-amber-500/20 text-amber-900">
+                ℹ️ سيتم خصم مبلغ <span className="font-extrabold text-ink">{money(refundModal.total)}</span> من «إجمالي المبيعات»، وتحديث «إجمالي التكلفة» تلقائياً لتشمل تكلفة القطع المسترجعة للمخزون.
               </p>
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-black/5">
               <button
                 type="button"
-                onClick={() => setDeleteModal(null)}
+                onClick={() => setRefundModal(null)}
                 className="btn-outline px-4 py-2 text-xs font-bold"
-                disabled={deleting}
+                disabled={processingRefund}
               >
                 إلغاء
               </button>
               <button
                 type="button"
-                onClick={handleDeleteSale}
-                disabled={deleting}
-                className="btn-danger flex items-center gap-1.5 px-4 py-2 text-xs font-bold"
+                onClick={handleRefundSale}
+                disabled={processingRefund}
+                className="btn-dark flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-amber-800 hover:bg-amber-900 border-amber-900 text-white"
               >
-                <Trash2 className="h-3.5 w-3.5" />
-                <span>{deleting ? 'جاري الحذف...' : 'نعم، حذف المعاملة'}</span>
+                <RotateCcw className={`h-3.5 w-3.5 ${processingRefund ? 'animate-spin' : ''}`} />
+                <span>{processingRefund ? 'جاري الاسترجاع...' : 'تأكيد الاسترجاع وإعادة للمخزون'}</span>
               </button>
             </div>
           </div>

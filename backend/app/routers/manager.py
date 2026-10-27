@@ -17,6 +17,7 @@ from ..schemas import (
     UserOut,
 )
 from ..security import hash_password
+from .orders import _restock
 
 router = APIRouter(prefix="/manager", tags=["manager"])
 
@@ -136,15 +137,48 @@ def all_sales(
     return db.scalars(stmt.order_by(Order.created_at.desc()).limit(limit).offset(offset)).all()
 
 
+@router.post("/sales/{order_id}/refund")
 @router.delete("/sales/{order_id}")
-def delete_sales_record(order_id: int, db: DB, _: StaffUser):
-    """Delete an individual completed sales record by ID."""
-    order = db.scalar(select(Order).where(Order.id == order_id).options(selectinload(Order.items)))
-    if not order:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "سجل المعاملة غير موجود")
-    db.delete(order)
-    db.commit()
-    return {"message": f"تم حذف سجل المعاملة #{order_id} بنجاح", "id": order_id}
+def refund_and_restock_sales_record(order_id: int, db: DB, _: StaffUser):
+    """
+    Process refund and return of a completed sales record:
+    - Atomically restocks all items and variant sizes back into active inventory
+    - Deletes the sales transaction from history
+    - Ensures atomicity via database transaction rollback on any failure
+    """
+    try:
+        stmt = (
+            select(Order)
+            .where(Order.id == order_id)
+            .options(selectinload(Order.items))
+        )
+        if "sqlite" not in db.bind.dialect.name:
+            stmt = stmt.with_for_update()
+
+        order = db.scalar(stmt)
+        if not order:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "سجل المعاملة غير موجود")
+
+        # 1. Restock items and variant sizes back into active inventory
+        _restock(db, order)
+
+        # 2. Delete the sales transaction (cascade deletes items)
+        db.delete(order)
+        db.commit()
+
+        return {
+            "message": f"تم استرجاع الطلب #{order_id} وإعادة جميع المنتجات والقطع إلى المخزون بنجاح",
+            "id": order_id,
+        }
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            f"حدث خطأ أثناء معالجة استرجاع الطلب وإعادة المنتجات للمخزون: {str(exc)}",
+        )
 
 
 @router.get("/inventory-cost")

@@ -5,7 +5,7 @@ from sqlalchemy import delete, select, text
 from sqlalchemy.orm import selectinload
 
 from ..deps import DB, CustomerUser, ManagerUser, StaffUser
-from ..models import ACTIVE_ORDER_STATUSES, Order, OrderItem, OrderStatus, Product, UserRole
+from ..models import ACTIVE_ORDER_STATUSES, Order, OrderItem, OrderStatus, Product, ProductSize, UserRole
 from ..schemas import OrderCreate, OrderFulfillmentOut, OrderOut, OrderStatusUpdate
 
 router = APIRouter(prefix="/orders", tags=["orders"])
@@ -43,10 +43,17 @@ def _restock(db, order: Order) -> None:
         if prod is not None:
             qty = int(item.quantity or 0)
             prod.stock = (prod.stock or 0) + qty
-            if item.selected_size and prod.sizes:
-                size_obj = next((s for s in prod.sizes if s.size == item.selected_size), None)
-                if size_obj is not None:
-                    size_obj.stock = (size_obj.stock or 0) + qty
+            if item.selected_size:
+                if prod.sizes:
+                    size_obj = next((s for s in prod.sizes if s.size == item.selected_size), None)
+                    if size_obj is not None:
+                        size_obj.stock = (size_obj.stock or 0) + qty
+                    else:
+                        new_size = ProductSize(product_id=prod.id, size=item.selected_size, stock=qty)
+                        prod.sizes.append(new_size)
+                else:
+                    new_size = ProductSize(product_id=prod.id, size=item.selected_size, stock=qty)
+                    prod.sizes = [new_size]
 
 
 # ============================== CUSTOMER ==================================== #
@@ -229,15 +236,24 @@ def update_status(order_id: int, data: OrderStatusUpdate, db: DB, user: StaffUse
 
 @router.delete("/{order_id}")
 def delete_order(order_id: int, db: DB, user: StaffUser):
-    """Delete an individual order. Protected endpoint for Admins/Managers."""
-    order = db.scalar(select(Order).where(Order.id == order_id).options(selectinload(Order.items)))
-    if not order:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "الطلب غير موجود")
-    if order.status in (OrderStatus.PENDING, OrderStatus.PROCESSING):
+    """Delete an individual order with automatic inventory restocking."""
+    try:
+        order = db.scalar(select(Order).where(Order.id == order_id).options(selectinload(Order.items)))
+        if not order:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "الطلب غير موجود")
         _restock(db, order)
-    db.delete(order)
-    db.commit()
-    return {"message": f"تم حذف الطلب #{order_id} بنجاح", "id": order_id}
+        db.delete(order)
+        db.commit()
+        return {"message": f"تم استرجاع المنتجات إلى المخزون وحذف الطلب #{order_id} بنجاح", "id": order_id}
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            f"حدث خطأ أثناء معالجة استرجاع الطلب وإعادة المنتجات للمخزون: {str(exc)}",
+        )
 
 
 @router.delete("")
