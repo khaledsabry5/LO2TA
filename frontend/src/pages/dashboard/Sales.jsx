@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Receipt, Search, Download, Filter, Package, User, CheckCircle2, ArrowLeft, Coins, RotateCcw, AlertTriangle, X } from 'lucide-react'
+import { Receipt, Search, Download, Filter, Package, User, CheckCircle2, ArrowLeft, Coins, RotateCcw, AlertTriangle, X, Wallet } from 'lucide-react'
 import { api } from '../../lib/api'
 import { ORDER_STATUS, formatDate, money } from '../../lib/format'
 import { PageLoader, EmptyState } from '../../components/ui'
@@ -86,6 +86,9 @@ export default function Sales() {
     0
   )
 
+  // Total Liquid Cash = Total Completed Sales - Total Other Expenses & Discounts
+  const totalLiquidCash = totalSum - (parseFloat(totalExpenses) || 0)
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -131,11 +134,40 @@ export default function Sales() {
       </div>
 
       {/* Metrics Banner */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
         <div className="card p-4">
           <p className="text-xs font-bold text-ink-muted">إجمالي المبيعات المكتملة</p>
           <p className="mt-1 text-xl font-extrabold text-ink sm:text-2xl">{money(totalSum)}</p>
         </div>
+
+        <div className={`card p-4 border transition-all ${
+          totalLiquidCash >= 0
+            ? 'bg-gradient-to-br from-emerald-50/70 via-white to-emerald-100/40 border-emerald-300/80 shadow-sm'
+            : 'bg-gradient-to-br from-sale/5 via-white to-sale/10 border-sale/30 shadow-sm'
+        }`}>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+              <Wallet className="h-3.5 w-3.5 text-emerald-700" />
+              <span>إجمالي الكاش / السيولة</span>
+            </p>
+            <span className={`text-[0.65rem] font-bold px-2 py-0.5 rounded-full ${
+              totalLiquidCash >= 0
+                ? 'text-emerald-800 bg-emerald-200/70'
+                : 'text-sale bg-sale/10'
+            }`}>
+              صافي السيولة
+            </span>
+          </div>
+          <p className={`mt-1 text-xl font-extrabold sm:text-2xl ${
+            totalLiquidCash >= 0 ? 'text-emerald-800' : 'text-sale'
+          }`}>
+            {money(totalLiquidCash)}
+          </p>
+          <p className="mt-0.5 text-[0.65rem] text-emerald-900/70">
+            المبيعات المكتملة − المصروفات والخصومات
+          </p>
+        </div>
+
         <div className="card p-4">
           <p className="text-xs font-bold text-ink-muted">إجمالي التكلفة (المخزون)</p>
           <p className="mt-1 text-xl font-extrabold text-ink sm:text-2xl">{money(totalInventoryCost)}</p>
@@ -143,6 +175,7 @@ export default function Sales() {
             تكلفة كافة القطع والمقاسات بالمخزون{totalInventoryPieces > 0 ? ` (${totalInventoryPieces} قطعة)` : ''}
           </p>
         </div>
+
         <button
           type="button"
           onClick={() => setShowExpensesModal(true)}
@@ -159,6 +192,7 @@ export default function Sales() {
           <p className="mt-1 text-xl font-extrabold text-amber-900 sm:text-2xl">{money(totalExpenses)}</p>
           <p className="mt-0.5 text-[0.65rem] text-amber-800/80">انقر لفتح نافذة إدارة النفقات والخصومات</p>
         </button>
+
         <div className="card p-4">
           <p className="text-xs font-bold text-ink-muted">عدد المبيعات المسلمة</p>
           <p className="mt-1 text-xl font-extrabold text-ink sm:text-2xl">{filteredSales.length} عملية مكتملة</p>
