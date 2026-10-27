@@ -139,11 +139,17 @@ def all_sales(
 @router.get("/inventory-cost")
 def get_total_inventory_cost(db: DB, _: StaffUser):
     """
-    Returns the sum of cost_price for all products currently uploaded to the website
-    (the entire inventory base), not just the products sold.
+    Returns the sum of (cost_price * stock_quantity) for all products currently
+    uploaded to the website (the entire inventory base), taking into account
+    all variant/size quantities.
     """
-    total_cost = db.scalar(select(func.coalesce(func.sum(Product.cost_price), 0))) or Decimal("0.00")
-    return {"total_cost": float(total_cost)}
+    products = db.scalars(select(Product).options(selectinload(Product.sizes))).all()
+    total_cost = sum((p.total_inventory_cost for p in products), Decimal("0.00"))
+    total_pieces = sum((p.total_inventory_quantity for p in products), 0)
+    return {
+        "total_cost": float(total_cost),
+        "total_pieces": total_pieces,
+    }
 
 
 @router.get("/analytics")
@@ -196,7 +202,7 @@ def analytics(db: DB, _: ManagerUser, months: int = Query(6, ge=1, le=24)):
         "products_count": products_count,
         "pending_orders": pending_count,
         "discount_given": float(discount_given),
-        "total_inventory_cost": float(db.scalar(select(func.coalesce(func.sum(Product.cost_price), 0))) or 0),
+        "total_inventory_cost": float(sum((p.total_inventory_cost for p in db.scalars(select(Product).options(selectinload(Product.sizes))).all()), Decimal("0.00"))),
         "revenue_by_month": [
             {"month": m.strftime("%Y-%m"), "revenue": float(r or 0), "orders": c} for m, r, c in by_month
         ],

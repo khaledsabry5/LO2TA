@@ -58,21 +58,6 @@ export default function OrdersAdmin() {
     }
   }
 
-  const handleClearAllOrders = async () => {
-    if (!window.confirm('تحذير: هل أنت متأكد من مسح كافة الطلبات وسجل المبيعات نهائياً؟ لا يمكن التراجع عن هذا الإجراء.')) return
-    setLoading(true)
-    setMsg('')
-    try {
-      await api.clearAllOrders()
-      setOrders([])
-      setMsg('تم مسح جميع بيانات الطلبات وسجل المبيعات بنجاح')
-    } catch (err) {
-      alert(err.message || 'فشل مسح الطلبات')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const handleStatusChange = async (orderId, newStatus) => {
     setUpdatingId(orderId)
     setMsg('')
@@ -142,18 +127,6 @@ export default function OrdersAdmin() {
 
         {/* Actions & Status filter */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {isManager && orders.length > 0 && (
-            <button
-              type="button"
-              onClick={handleClearAllOrders}
-              className="btn-danger flex items-center gap-1.5 px-3 py-2 text-xs font-bold"
-              title="مسح كافة الطلبات وسجل المبيعات"
-            >
-              <Trash2 className="h-4 w-4" />
-              <span>مسح كافة الطلبات</span>
-            </button>
-          )}
-
           <div className="w-full sm:w-64">
             <select
               value={statusFilter}

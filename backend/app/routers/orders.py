@@ -241,32 +241,10 @@ def delete_order(order_id: int, db: DB, user: StaffUser):
 
 
 @router.delete("")
-def clear_all_orders(db: DB, user: ManagerUser):
-    """Manager-only: clear all orders and sales transactions from database."""
-    active_orders = db.scalars(
-        select(Order).where(Order.status.in_((OrderStatus.PENDING, OrderStatus.PROCESSING))).options(selectinload(Order.items))
-    ).all()
-    for o in active_orders:
-        _restock(db, o)
-    db.execute(delete(OrderItem))
-    db.execute(delete(Order))
-    db.commit()
-
-    # Reset primary key sequence/counter so the very next transaction starts counting from 1
-    # SQLite
-    try:
-        db.execute(text("DELETE FROM sqlite_sequence WHERE name IN ('orders', 'order_items')"))
-        db.commit()
-    except Exception:
-        pass
-
-    # PostgreSQL
-    try:
-        db.execute(text("ALTER SEQUENCE orders_id_seq RESTART WITH 1"))
-        db.execute(text("ALTER SEQUENCE order_items_id_seq RESTART WITH 1"))
-        db.commit()
-    except Exception:
-        pass
-
-    return {"message": "تم مسح جميع الطلبات وسجل المبيعات وإعادة ترقيم المعاملات بنجاح"}
+def clear_all_orders(_: ManagerUser):
+    """Completely disabled: sales history and orders can never be cleared or deleted."""
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="تم تعطيل مسح سجل المبيعات والطلبات نهائياً لحماية الأرشيف المالي للعمليات",
+    )
 

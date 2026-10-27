@@ -236,6 +236,20 @@ class Product(Base):
             return any(s.stock > 0 for s in self.sizes)
         return self.stock > 0
 
+    @property
+    def total_inventory_quantity(self) -> int:
+        """Total pieces across all sizes/variants or base stock."""
+        if self.sizes and len(self.sizes) > 0:
+            size_stock_sum = sum(s.stock for s in self.sizes if s.stock and s.stock > 0)
+            return size_stock_sum if size_stock_sum > 0 else max(self.stock or 0, 0)
+        return max(self.stock or 0, 0)
+
+    @property
+    def total_inventory_cost(self) -> Decimal:
+        """Total wholesale cost for all pieces currently in stock for this product."""
+        cost = Decimal(self.cost_price or Decimal("0.00"))
+        return (cost * Decimal(self.total_inventory_quantity)).quantize(TWO_PLACES)
+
 
 class ProductSize(Base):
     """Specific inventory tracking per shoe size (restricted to range 30-50)."""

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Receipt, Search, Download, Filter, Package, User, Trash2, CheckCircle2, ArrowLeft, Coins } from 'lucide-react'
+import { Receipt, Search, Download, Filter, Package, User, CheckCircle2, ArrowLeft, Coins } from 'lucide-react'
 import { api } from '../../lib/api'
 import { ORDER_STATUS, formatDate, money } from '../../lib/format'
 import { PageLoader, EmptyState } from '../../components/ui'
@@ -8,6 +8,7 @@ import ExpensesAdmin from './ExpensesAdmin'
 export default function Sales() {
   const [sales, setSales] = useState([])
   const [totalInventoryCost, setTotalInventoryCost] = useState(0)
+  const [totalInventoryPieces, setTotalInventoryPieces] = useState(0)
   const [totalExpenses, setTotalExpenses] = useState(0)
   const [showExpensesModal, setShowExpensesModal] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -22,7 +23,7 @@ export default function Sales() {
           status: 'DELIVERED',
           limit: 100,
         }),
-        api.inventoryCost().catch(() => ({ total_cost: 0 })),
+        api.inventoryCost().catch(() => ({ total_cost: 0, total_pieces: 0 })),
         api.getExpensesSummary().catch(() => ({ total_amount: 0 })),
       ])
       const deliveredList = Array.isArray(salesData)
@@ -30,6 +31,7 @@ export default function Sales() {
         : []
       setSales(deliveredList)
       setTotalInventoryCost(costData?.total_cost || 0)
+      setTotalInventoryPieces(costData?.total_pieces || 0)
       setTotalExpenses(expData?.total_amount || 0)
     } catch (err) {
       console.error(err)
@@ -42,19 +44,6 @@ export default function Sales() {
   useEffect(() => {
     loadSales()
   }, [])
-
-  const handleClearSales = async () => {
-    if (!window.confirm('تحذير: هل أنت متأكد من مسح جميع بيانات سجل المبيعات والطلبات بالكامل؟ سيتم إعادة ترقيم المعاملات لتبدأ من رقم 1.')) return
-    setLoading(true)
-    try {
-      await api.clearAllOrders()
-      setSales([])
-    } catch (err) {
-      alert(err.message || 'حدث خطأ أثناء مسح سجل المبيعات')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const filteredSales = sales.filter((order) => {
     if (!searchQuery.trim()) return true
@@ -110,18 +99,6 @@ export default function Sales() {
               className="input pr-9 text-xs"
             />
           </div>
-
-          {sales.length > 0 && (
-            <button
-              type="button"
-              onClick={handleClearSales}
-              className="btn-danger flex items-center gap-1.5 px-3 py-2 text-xs font-bold"
-              title="مسح سجل المبيعات والطلبات"
-            >
-              <Trash2 className="h-4 w-4" />
-              <span>مسح السجل</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -132,9 +109,11 @@ export default function Sales() {
           <p className="mt-1 text-xl font-extrabold text-ink sm:text-2xl">{money(totalSum)}</p>
         </div>
         <div className="card p-4">
-          <p className="text-xs font-bold text-ink-muted">إجمالي التكلفة</p>
+          <p className="text-xs font-bold text-ink-muted">إجمالي التكلفة (المخزون)</p>
           <p className="mt-1 text-xl font-extrabold text-ink sm:text-2xl">{money(totalInventoryCost)}</p>
-          <p className="mt-0.5 text-[0.65rem] text-ink-muted">تكلفة جميع المنتجات المرفوعة بالمتجر</p>
+          <p className="mt-0.5 text-[0.65rem] text-ink-muted">
+            تكلفة كافة القطع والمقاسات بالمخزون{totalInventoryPieces > 0 ? ` (${totalInventoryPieces} قطعة)` : ''}
+          </p>
         </div>
         <button
           type="button"
