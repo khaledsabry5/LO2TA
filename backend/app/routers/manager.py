@@ -136,6 +136,17 @@ def all_sales(
     return db.scalars(stmt.order_by(Order.created_at.desc()).limit(limit).offset(offset)).all()
 
 
+@router.delete("/sales/{order_id}")
+def delete_sales_record(order_id: int, db: DB, _: StaffUser):
+    """Delete an individual completed sales record by ID."""
+    order = db.scalar(select(Order).where(Order.id == order_id).options(selectinload(Order.items)))
+    if not order:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "سجل المعاملة غير موجود")
+    db.delete(order)
+    db.commit()
+    return {"message": f"تم حذف سجل المعاملة #{order_id} بنجاح", "id": order_id}
+
+
 @router.get("/inventory-cost")
 def get_total_inventory_cost(db: DB, _: StaffUser):
     """

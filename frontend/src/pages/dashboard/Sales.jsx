@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Receipt, Search, Download, Filter, Package, User, CheckCircle2, ArrowLeft, Coins } from 'lucide-react'
+import { Receipt, Search, Download, Filter, Package, User, CheckCircle2, ArrowLeft, Coins, Trash2, AlertTriangle, X } from 'lucide-react'
 import { api } from '../../lib/api'
 import { ORDER_STATUS, formatDate, money } from '../../lib/format'
 import { PageLoader, EmptyState } from '../../components/ui'
@@ -11,6 +11,8 @@ export default function Sales() {
   const [totalInventoryPieces, setTotalInventoryPieces] = useState(0)
   const [totalExpenses, setTotalExpenses] = useState(0)
   const [showExpensesModal, setShowExpensesModal] = useState(false)
+  const [deleteModal, setDeleteModal] = useState(null)
+  const [deleting, setDeleting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -45,6 +47,22 @@ export default function Sales() {
     loadSales()
   }, [])
 
+  const handleDeleteSale = async () => {
+    if (!deleteModal) return
+    const orderId = deleteModal.id
+    setDeleting(true)
+    try {
+      await api.deleteSale(orderId)
+      // Immediately and accurately deduct the deleted record from local state so all metrics recalculate dynamically
+      setSales((prev) => prev.filter((o) => o.id !== orderId))
+      setDeleteModal(null)
+    } catch (err) {
+      alert(err.message || 'حدث خطأ أثناء حذف المعاملة')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const filteredSales = sales.filter((order) => {
     if (!searchQuery.trim()) return true
     const q = searchQuery.trim().toLowerCase()
@@ -56,7 +74,11 @@ export default function Sales() {
     )
   })
 
-  const totalSum = filteredSales.reduce((acc, s) => acc + (parseFloat(s.total) || 0), 0)
+  // Dynamically aggregates only currently existing sales records
+  const totalSum = (searchQuery.trim() ? filteredSales : sales).reduce(
+    (acc, s) => acc + (parseFloat(s.total) || 0),
+    0
+  )
 
   return (
     <div className="space-y-6">
@@ -162,7 +184,8 @@ export default function Sales() {
                   <th className="p-3 text-start sm:p-4">تكلفة المنتجات</th>
                   <th className="p-3 text-start sm:p-4">المبلغ الصافي</th>
                   <th className="p-3 text-start sm:p-4">الحالة</th>
-                  <th className="p-3 text-end sm:p-4">تاريخ التسليم</th>
+                  <th className="p-3 text-start sm:p-4">تاريخ التسليم</th>
+                  <th className="p-3 text-end sm:p-4">الإجراءات</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/5">
@@ -202,13 +225,88 @@ export default function Sales() {
                         تم التوصيل
                       </span>
                     </td>
-                    <td className="p-3 text-end sm:p-4 text-xs text-ink-muted">
+                    <td className="p-3 text-start sm:p-4 text-xs text-ink-muted whitespace-nowrap">
                       {formatDate(order.created_at)}
+                    </td>
+                    <td className="p-3 text-end sm:p-4 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => setDeleteModal(order)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-sale hover:bg-sale/10 transition ms-auto"
+                        title={`حذف المعاملة #${order.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-black/10 text-start">
+            <div className="flex items-center justify-between pb-3 border-b border-black/5">
+              <div className="flex items-center gap-2 text-sale">
+                <AlertTriangle className="h-5 w-5" />
+                <h3 className="font-extrabold text-ink text-base">تأكيد حذف المعاملة المالية</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeleteModal(null)}
+                className="text-ink-muted hover:text-ink"
+                title="إلغاء"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="py-4 space-y-3 text-sm">
+              <p className="text-ink">
+                هل أنت متأكد من رغبتك في حذف المعاملة <span className="font-mono font-extrabold text-sale">#{deleteModal.id}</span> نهائياً من سجل المبيعات؟
+              </p>
+              <div className="rounded-xl bg-cream/50 p-3 space-y-1.5 text-xs border border-black/5">
+                <div className="flex justify-between">
+                  <span className="text-ink-muted">اسم العميل:</span>
+                  <span className="font-bold text-ink">{deleteModal.shipping_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-ink-muted">قيمة المعاملة:</span>
+                  <span className="font-extrabold text-sale">{money(deleteModal.total)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-ink-muted">تاريخ المعاملة:</span>
+                  <span className="font-mono text-ink">{formatDate(deleteModal.created_at)}</span>
+                </div>
+              </div>
+              <p className="text-[0.72rem] text-ink-muted font-bold">
+                ⚠️ سيتم خصم مبلغ <span className="font-extrabold text-ink">{money(deleteModal.total)}</span> فوراً وتلقائياً من «إجمالي المبيعات المكتملة».
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-black/5">
+              <button
+                type="button"
+                onClick={() => setDeleteModal(null)}
+                className="btn-outline px-4 py-2 text-xs font-bold"
+                disabled={deleting}
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteSale}
+                disabled={deleting}
+                className="btn-danger flex items-center gap-1.5 px-4 py-2 text-xs font-bold"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>{deleting ? 'جاري الحذف...' : 'نعم، حذف المعاملة'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

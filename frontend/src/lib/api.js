@@ -120,6 +120,7 @@ export const api = {
   updateStaff: (id, data) => request(`/manager/staff/${id}`, { method: 'PATCH', body: data }),
   deleteStaff: (id) => request(`/users/${id}`, { method: 'DELETE' }),
   sales: (params) => request('/manager/sales', { params }),
+  deleteSale: (id) => request(`/manager/sales/${id}`, { method: 'DELETE' }),
   inventoryCost: () => request('/manager/inventory-cost'),
 
   // expenses & discounts
