@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.orm import selectinload
 
 from ..deps import DB, CustomerUser, ManagerUser, StaffUser
@@ -116,6 +116,7 @@ def checkout(data: OrderCreate, db: DB, user: CustomerUser):
                 product_id=product.id,
                 product_name=product.name,
                 product_category=cat_name,
+                cost_price=product.cost_price or Decimal("0.00"),
                 unit_price=unit,
                 discount_percent=product.discount_percent,
                 final_unit_price=final_unit,
@@ -250,5 +251,22 @@ def clear_all_orders(db: DB, user: ManagerUser):
     db.execute(delete(OrderItem))
     db.execute(delete(Order))
     db.commit()
-    return {"message": "تم مسح جميع الطلبات وسجل المبيعات بنجاح"}
+
+    # Reset primary key sequence/counter so the very next transaction starts counting from 1
+    # SQLite
+    try:
+        db.execute(text("DELETE FROM sqlite_sequence WHERE name IN ('orders', 'order_items')"))
+        db.commit()
+    except Exception:
+        pass
+
+    # PostgreSQL
+    try:
+        db.execute(text("ALTER SEQUENCE orders_id_seq RESTART WITH 1"))
+        db.execute(text("ALTER SEQUENCE order_items_id_seq RESTART WITH 1"))
+        db.commit()
+    except Exception:
+        pass
+
+    return {"message": "تم مسح جميع الطلبات وسجل المبيعات وإعادة ترقيم المعاملات بنجاح"}
 

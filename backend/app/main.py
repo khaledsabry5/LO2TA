@@ -41,6 +41,41 @@ async def lifespan(_: FastAPI):
             except Exception:
                 pass
 
+            # Products & OrderItems cost_price migration
+            if "sqlite" in engine.url.drivername:
+                try:
+                    conn.execute(text("ALTER TABLE products ADD COLUMN cost_price NUMERIC(10, 2) NOT NULL DEFAULT 0"))
+                    conn.commit()
+                except Exception:
+                    pass
+                try:
+                    conn.execute(text("ALTER TABLE order_items ADD COLUMN cost_price NUMERIC(10, 2) NOT NULL DEFAULT 0"))
+                    conn.commit()
+                except Exception:
+                    pass
+            else:
+                try:
+                    conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price NUMERIC(10, 2) NOT NULL DEFAULT 0"))
+                    conn.commit()
+                except Exception:
+                    pass
+                try:
+                    conn.execute(text("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS cost_price NUMERIC(10, 2) NOT NULL DEFAULT 0"))
+                    conn.commit()
+                except Exception:
+                    pass
+
+            try:
+                conn.execute(text("UPDATE products SET cost_price = 0 WHERE cost_price IS NULL"))
+                conn.commit()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("UPDATE order_items SET cost_price = 0 WHERE cost_price IS NULL"))
+                conn.commit()
+            except Exception:
+                pass
+
             if "sqlite" in engine.url.drivername:
                 for col in (
                     "selected_size INTEGER",

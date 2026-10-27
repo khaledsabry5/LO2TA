@@ -19,6 +19,7 @@ export default function ProductForm() {
     category_id: null,
     category_ids: [],
     category: '',
+    cost_price: '',
     price: '',
     stock: '10',
     discount_percent: '0',
@@ -115,6 +116,7 @@ export default function ProductForm() {
             category_id: catIds[0] || p.category_id || null,
             category_ids: catIds,
             category: catName,
+            cost_price: p.cost_price !== undefined && p.cost_price !== null ? String(p.cost_price) : '',
             price: String(p.price),
             stock: String(p.stock),
             discount_percent: String(p.discount_percent || 0),
@@ -306,6 +308,7 @@ export default function ProductForm() {
         category_ids: finalCatIds,
         category_id: finalCatIds[0] || undefined,
         category: form.category || undefined,
+        cost_price: form.cost_price === '' ? 0 : (parseFloat(form.cost_price) || 0),
         price: parseFloat(form.price),
         stock: finalStock,
         discount_percent: parseInt(form.discount_percent || 0, 10),
@@ -654,7 +657,24 @@ export default function ProductForm() {
         {/* Pricing & Stock */}
         <div className="admin-pricing-grid">
           <div>
-            <label className="label" htmlFor="prod-price">السعر الرسمي (ج.م)</label>
+            <label className="label flex items-center justify-between" htmlFor="prod-cost-price">
+              <span>سعر التكلفة / الجملة (ج.م)</span>
+              <span className="text-[0.68rem] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">خاص بالإدارة</span>
+            </label>
+            <input
+              id="prod-cost-price"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="مثال: 250"
+              value={form.cost_price}
+              onChange={setField('cost_price')}
+              className="input text-base font-bold border-amber-300/80 focus:border-amber-500"
+            />
+          </div>
+
+          <div>
+            <label className="label" htmlFor="prod-price">سعر البيع الرسمي (ج.م)</label>
             <input
               id="prod-price"
               type="number"

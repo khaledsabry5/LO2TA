@@ -6,21 +6,26 @@ import { PageLoader, EmptyState } from '../../components/ui'
 
 export default function Sales() {
   const [sales, setSales] = useState([])
+  const [totalInventoryCost, setTotalInventoryCost] = useState(0)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
   const loadSales = async () => {
     setLoading(true)
     try {
-      // Strictly fetch only DELIVERED orders as the final archive for completed sales
-      const data = await api.sales({
-        status: 'DELIVERED',
-        limit: 100,
-      })
-      const deliveredList = Array.isArray(data)
-        ? data.filter((s) => String(s.status || '').toUpperCase() === 'DELIVERED')
+      // Strictly fetch only DELIVERED orders as the final archive for completed sales & total inventory cost
+      const [salesData, costData] = await Promise.all([
+        api.sales({
+          status: 'DELIVERED',
+          limit: 100,
+        }),
+        api.inventoryCost().catch(() => ({ total_cost: 0 })),
+      ])
+      const deliveredList = Array.isArray(salesData)
+        ? salesData.filter((s) => String(s.status || '').toUpperCase() === 'DELIVERED')
         : []
       setSales(deliveredList)
+      setTotalInventoryCost(costData?.total_cost || 0)
     } catch (err) {
       console.error(err)
       setSales([])
@@ -34,7 +39,7 @@ export default function Sales() {
   }, [])
 
   const handleClearSales = async () => {
-    if (!window.confirm('تحذير: هل أنت متأكد من مسح جميع بيانات سجل المبيعات والطلبات بالكامل؟ لا يمكن التراجع عن هذا الإجراء.')) return
+    if (!window.confirm('تحذير: هل أنت متأكد من مسح جميع بيانات سجل المبيعات والطلبات بالكامل؟ سيتم إعادة ترقيم المعاملات لتبدأ من رقم 1.')) return
     setLoading(true)
     try {
       await api.clearAllOrders()
@@ -58,7 +63,6 @@ export default function Sales() {
   })
 
   const totalSum = filteredSales.reduce((acc, s) => acc + (parseFloat(s.total) || 0), 0)
-  const totalDiscounts = filteredSales.reduce((acc, s) => acc + (parseFloat(s.discount_total) || 0), 0)
 
   return (
     <div className="space-y-6">
@@ -112,8 +116,9 @@ export default function Sales() {
           <p className="mt-1 text-xl font-extrabold text-ink sm:text-2xl">{money(totalSum)}</p>
         </div>
         <div className="card p-4">
-          <p className="text-xs font-bold text-ink-muted">إجمالي الخصومات الممنوحة</p>
-          <p className="mt-1 text-xl font-extrabold text-sale sm:text-2xl">{money(totalDiscounts)}</p>
+          <p className="text-xs font-bold text-ink-muted">إجمالي التكلفة</p>
+          <p className="mt-1 text-xl font-extrabold text-ink sm:text-2xl">{money(totalInventoryCost)}</p>
+          <p className="mt-0.5 text-[0.65rem] text-ink-muted">تكلفة جميع المنتجات المرفوعة بالمتجر</p>
         </div>
         <div className="card p-4 col-span-2 sm:col-span-1">
           <p className="text-xs font-bold text-ink-muted">عدد المبيعات المسلمة</p>
@@ -143,7 +148,7 @@ export default function Sales() {
                   <th className="p-3 text-start sm:p-4">رقم المعاملة</th>
                   <th className="p-3 text-start sm:p-4">العميل وبيانات التوصيل</th>
                   <th className="p-3 text-start sm:p-4">العناصر</th>
-                  <th className="p-3 text-start sm:p-4">الخصم الممنوح</th>
+                  <th className="p-3 text-start sm:p-4">تكلفة المنتجات</th>
                   <th className="p-3 text-start sm:p-4">المبلغ الصافي</th>
                   <th className="p-3 text-start sm:p-4">الحالة</th>
                   <th className="p-3 text-end sm:p-4">تاريخ التسليم</th>
@@ -174,11 +179,9 @@ export default function Sales() {
                       </div>
                     </td>
                     <td className="p-3 sm:p-4">
-                      {order.discount_total > 0 ? (
-                        <span className="text-sale font-bold">-{money(order.discount_total)}</span>
-                      ) : (
-                        <span className="text-ink-muted text-xs">—</span>
-                      )}
+                      <span className="font-bold text-ink">
+                        {money(order.cost_total ?? 0)}
+                      </span>
                     </td>
                     <td className="p-3 sm:p-4 font-extrabold text-ink">
                       {money(order.total)}

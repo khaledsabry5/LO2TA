@@ -223,6 +223,7 @@ class ProductBase(BaseModel):
     department_ids: list[int] = Field(default_factory=list)
     gender: Gender = Gender.UNISEX
     price: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
+    cost_price: Decimal = Field(default=Decimal("0.00"), ge=0, max_digits=10, decimal_places=2)
     stock: int = Field(ge=0, default=0)
     discount_percent: int = Field(ge=0, le=90, default=0)
     is_active: bool = True
@@ -242,6 +243,7 @@ class ProductUpdate(BaseModel):
     department_ids: list[int] | None = None
     gender: Gender | None = None
     price: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
+    cost_price: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
     stock: int | None = Field(default=None, ge=0)
     discount_percent: int | None = Field(default=None, ge=0, le=90)
     is_active: bool | None = None
@@ -279,6 +281,7 @@ class ProductOut(ORM):
 
 
 class ProductAdminOut(ProductOut):
+    cost_price: Money = Decimal("0.00")
     stock: int
     is_active: bool
     updated_at: datetime
@@ -356,6 +359,7 @@ class OrderItemOut(ORM):
     product_id: int | None
     product_name: str
     product_category: str
+    cost_price: Money = Decimal("0.00")
     unit_price: Money
     discount_percent: int
     final_unit_price: Money
@@ -387,6 +391,7 @@ class OrderFulfillmentOut(OrderOut):
 class OrderManagerOut(OrderOut):
     customer_id: int | None
     customer: UserOut | None
+    cost_total: Money = Decimal("0.00")
 
 
 class CustomerDetail(UserOut):

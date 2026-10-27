@@ -127,10 +127,23 @@ def all_sales(
     offset: int = Query(0, ge=0),
 ):
     """Sales archive: returns completed sales (orders with DELIVERED status)."""
-    stmt = select(Order).options(selectinload(Order.items), selectinload(Order.customer))
+    stmt = select(Order).options(
+        selectinload(Order.items).selectinload(OrderItem.product),
+        selectinload(Order.customer),
+    )
     if status_filter:
         stmt = stmt.where(Order.status == status_filter)
     return db.scalars(stmt.order_by(Order.created_at.desc()).limit(limit).offset(offset)).all()
+
+
+@router.get("/inventory-cost")
+def get_total_inventory_cost(db: DB, _: StaffUser):
+    """
+    Returns the sum of cost_price for all products currently uploaded to the website
+    (the entire inventory base), not just the products sold.
+    """
+    total_cost = db.scalar(select(func.coalesce(func.sum(Product.cost_price), 0))) or Decimal("0.00")
+    return {"total_cost": float(total_cost)}
 
 
 @router.get("/analytics")
@@ -183,6 +196,7 @@ def analytics(db: DB, _: ManagerUser, months: int = Query(6, ge=1, le=24)):
         "products_count": products_count,
         "pending_orders": pending_count,
         "discount_given": float(discount_given),
+        "total_inventory_cost": float(db.scalar(select(func.coalesce(func.sum(Product.cost_price), 0))) or 0),
         "revenue_by_month": [
             {"month": m.strftime("%Y-%m"), "revenue": float(r or 0), "orders": c} for m, r, c in by_month
         ],

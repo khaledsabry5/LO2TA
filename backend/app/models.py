@@ -166,6 +166,7 @@ class Product(Base):
     department_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id", ondelete="SET NULL"), nullable=True, index=True)
     gender: Mapped[Gender] = mapped_column(pg_enum(Gender, "product_gender"), default=Gender.UNISEX)
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    cost_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"), server_default="0", nullable=False)
     discount_percent: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     stock: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
@@ -307,6 +308,16 @@ class Order(Base):
     customer: Mapped[User | None] = relationship(back_populates="orders", foreign_keys=[customer_id])
     items: Mapped[list[OrderItem]] = relationship(back_populates="order", cascade="all, delete-orphan")
 
+    @property
+    def cost_total(self) -> Decimal:
+        return sum(
+            (
+                (Decimal(it.cost_price) if it.cost_price is not None and it.cost_price > 0 else (Decimal(it.product.cost_price) if it.product and it.product.cost_price else Decimal("0.00"))) * it.quantity
+                for it in self.items
+            ),
+            Decimal("0.00")
+        ).quantize(TWO_PLACES)
+
 
 class OrderItem(Base):
     __tablename__ = "order_items"
@@ -319,6 +330,7 @@ class OrderItem(Base):
     # Snapshots so history survives product edits / deletion
     product_name: Mapped[str] = mapped_column(String(200))
     product_category: Mapped[str] = mapped_column(String(100))
+    cost_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"), server_default="0", nullable=False)
     unit_price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     discount_percent: Mapped[int] = mapped_column(Integer, default=0)
     final_unit_price: Mapped[Decimal] = mapped_column(Numeric(10, 2))

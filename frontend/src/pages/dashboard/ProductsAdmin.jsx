@@ -206,6 +206,11 @@ export default function ProductsAdmin() {
                       </td>
                       <td className="p-3 sm:p-4">
                         <PriceTag product={p} size="sm" />
+                        {typeof p.cost_price !== 'undefined' && p.cost_price !== null && (
+                          <p className="mt-1 text-[0.72rem] text-ink-muted">
+                            التكلفة: <span className="font-bold text-ink">{money(p.cost_price)}</span>
+                          </p>
+                        )}
                       </td>
                       <td className="p-3 sm:p-4">
                         <span

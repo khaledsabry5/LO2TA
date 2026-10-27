@@ -122,4 +122,5 @@ export const api = {
   deleteStaff: (id) => request(`/users/${id}`, { method: 'DELETE' }),
   deleteUser: (id) => request(`/users/${id}`, { method: 'DELETE' }),
   sales: (params) => request('/manager/sales', { params }),
+  inventoryCost: () => request('/manager/inventory-cost'),
 }
