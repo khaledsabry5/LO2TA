@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { AlertCircle, Check, ChevronLeft, ChevronRight, Minus, Plus, ShoppingBag, Truck, Image as ImageIcon } from 'lucide-react'
+import { AlertCircle, Check, ChevronLeft, ChevronRight, Minus, Plus, ShoppingBag, Truck, Image as ImageIcon, Info } from 'lucide-react'
 import useEmblaCarousel from 'embla-carousel-react'
 import PriceTag from '../components/PriceTag'
 import { PageLoader, EmptyState } from '../components/ui'
@@ -544,6 +544,11 @@ export default function ProductDetail() {
           <div className="mt-6 flex items-center gap-3 rounded-2xl bg-cream-50 p-4 text-sm ring-1 ring-cream">
             <Truck className="h-5 w-5 shrink-0" />
             <span>توصيل سريع لجميع محافظات مصر · الدفع عند الاستلام (ج.م)</span>
+          </div>
+
+          <div className="mt-3 flex items-center gap-3 rounded-2xl bg-cream-50 p-4 text-sm ring-1 ring-cream">
+            <Info className="h-5 w-5 shrink-0" />
+            <span>سيتم تحديد سعر وميعاد التوصيل بعد تأكيد الشراء والتواصل معكم لإعلامكم بهم</span>
           </div>
         </div>
       </div>
