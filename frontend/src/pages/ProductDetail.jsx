@@ -365,7 +365,7 @@ export default function ProductDetail() {
             {Array.isArray(product.categories) && product.categories.length > 0 ? (
               product.categories.map((c) => (
                 <span key={c.id || c.name} className="chip bg-cream">
-                  {c.name}
+                  {typeof c === 'object' ? (c.name || '') : c}
                 </span>
               ))
             ) : (

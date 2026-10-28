@@ -78,7 +78,7 @@ export default function CategoriesSection() {
                 <CategoryCardMedia category={c} />
               </div>
               <div className="category-card-content">
-                <span className="category-card-title">{c.name}</span>
+                <span className="category-card-title">{typeof c === 'object' ? (c.name || '') : c}</span>
                 {typeof c.products_count === 'number' && (
                   <span className="category-card-subtitle">{c.products_count} منتج</span>
                 )}

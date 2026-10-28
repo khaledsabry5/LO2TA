@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Heart, Package } from 'lucide-react'
 import PriceTag from './PriceTag'
-import { CATEGORY_SINGULAR, GENDER_LABELS, firstImage, resolveMediaUrl } from '../lib/format'
+import { CATEGORY_SINGULAR, GENDER_LABELS, firstImage, getCategorySingular, resolveMediaUrl } from '../lib/format'
 
 export default function ProductCard({ product, index = 0 }) {
   const [liked, setLiked] = useState(false)
@@ -64,8 +64,8 @@ export default function ProductCard({ product, index = 0 }) {
       <div className="product-card-info">
         <p className="product-card-meta">
           {Array.isArray(product.categories) && product.categories.length > 0
-            ? product.categories.map((c) => CATEGORY_SINGULAR[c.name] || c.name).join(' · ')
-            : (CATEGORY_SINGULAR[product.category] || product.category || '')}
+            ? product.categories.map((c) => getCategorySingular(c)).filter(Boolean).join(' · ')
+            : getCategorySingular(product.category)}
           {product.gender && ` · ${GENDER_LABELS[product.gender] || (product.gender === 'unisex' ? 'للجنسين' : product.gender)}`}
         </p>
 

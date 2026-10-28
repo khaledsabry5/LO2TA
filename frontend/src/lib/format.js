@@ -41,8 +41,19 @@ export const CATEGORY_SINGULAR = {
 
 export const getCategoryName = (c) => {
   if (!c) return ''
-  if (typeof c === 'object') return c.name || ''
-  return CATEGORY_LABELS[c] || c
+  if (typeof c === 'object') return typeof c.name === 'string' ? c.name : (c.name ? String(c.name) : '')
+  const str = String(c)
+  return CATEGORY_LABELS[str] || str
+}
+
+export const getCategorySingular = (c) => {
+  if (!c) return ''
+  let val = c
+  if (typeof c === 'object') {
+    val = c.name || ''
+  }
+  const str = String(val || '')
+  return CATEGORY_SINGULAR[str] || str
 }
 
 export const GENDER_LABELS = { men: 'رجال', women: 'نساء', unisex: 'للجنسين (رجالي ونسائي)' }
