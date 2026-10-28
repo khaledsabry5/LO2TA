@@ -1,1 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#faedcd"/><text x="32" y="43" font-family="Georgia,serif" font-size="30" font-weight="700" text-anchor="middle" fill="#0a0a0a">L2</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="14" fill="#26382F" />
+  <rect x="3" y="3" width="58" height="58" rx="11" fill="none" stroke="#B2945E" stroke-width="1.5" opacity="0.75" />
+  <text x="32" y="42" font-family="'Playfair Display', Georgia, 'Times New Roman', serif" font-size="25" font-weight="700" letter-spacing="1" fill="#B2945E" text-anchor="middle">YSN</text>
+</svg>
