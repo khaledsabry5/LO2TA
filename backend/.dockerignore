@@ -1,0 +1,11 @@
+__pycache__
+*.py[cod]
+*$py.class
+*.sqlite3
+*.db
+lo2ta.db
+.venv
+venv
+.env
+.git
+.gitignore

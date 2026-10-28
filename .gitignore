@@ -35,6 +35,14 @@ yarn-error.log*
 # Uploads
 backend/uploads/*
 !backend/uploads/.gitkeep
+backend/static/*
+!backend/static/.gitkeep
+
+# SSL Certbot Certificates
+certbot/conf/*
+!certbot/conf/.gitkeep
+certbot/www/*
+!certbot/www/.gitkeep
 
 # OS & Editor files
 .DS_Store

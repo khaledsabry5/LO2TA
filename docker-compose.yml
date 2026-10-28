@@ -3,13 +3,76 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: lo2ta
-      POSTGRES_PASSWORD: lo2ta
-      POSTGRES_DB: lo2ta
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-lo2ta}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lo2ta_password_secure}
+      POSTGRES_DB: ${POSTGRES_DB:-lo2ta}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lo2ta} -d ${POSTGRES_DB:-lo2ta}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://lo2ta:lo2ta_password_secure@db:5432/lo2ta}
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/static:/app/static
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL:-}
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - app-network
+
+  certbot:
+    image: certbot/certbot
+    restart: unless-stopped
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - app-network
 
 volumes:
   pgdata:
+
+networks:
+  app-network:
+    driver: bridge
