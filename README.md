@@ -1,5 +1,5 @@
 # YSN Store — متجر YSN
-
+Project link: https://ysn-store.cloud/
 Full-stack e-commerce store (Arabic / RTL / Mobile-first).
 
 | Layer    | Stack                                   |
@@ -35,7 +35,6 @@ copy .env.example .env        # then edit values
 python -m app.seed            # creates tables, first manager, demo products
 uvicorn app.main:app --reload
 ```
-API docs: http://localhost:8000/docs
 
 Default seeded manager (change immediately): `manager@ysn.com` / `ChangeMe123!`
 
@@ -45,7 +44,6 @@ cd frontend
 npm install
 npm run dev
 ```
-App: http://localhost:5173
 
 ---
 
