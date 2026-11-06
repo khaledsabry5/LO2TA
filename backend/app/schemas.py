@@ -436,5 +436,9 @@ class PageViewOut(ORM):
     id: int
     page_path: str
     view_count: int
+    title: str | None = None
+    image_url: str | None = None
+    product_id: int | None = None
+
 
 

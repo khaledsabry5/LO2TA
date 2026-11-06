@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Eye, Search, RefreshCw, BarChart2, TrendingUp, Compass, Globe } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Eye, Search, RefreshCw, BarChart2, TrendingUp, Compass, Globe, Home, Package, ExternalLink } from 'lucide-react'
 import { api } from '../../lib/api'
+import { resolveMediaUrl } from '../../lib/format'
 import { PageLoader, EmptyState } from '../../components/ui'
 import './AdminTables.css'
 
@@ -32,7 +34,11 @@ export default function PageViewsAdmin() {
 
   const filteredViews = views.filter((item) => {
     if (!search.trim()) return true
-    return item.page_path.toLowerCase().includes(search.trim().toLowerCase())
+    const q = search.trim().toLowerCase()
+    return (
+      (item.title && item.title.toLowerCase().includes(q)) ||
+      (item.page_path && item.page_path.toLowerCase().includes(q))
+    )
   })
 
   const totalPageViews = views.reduce((acc, curr) => acc + (curr.view_count || 0), 0)
@@ -48,11 +54,11 @@ export default function PageViewsAdmin() {
             <h1 className="text-xl font-extrabold text-ink sm:text-2xl">مشاهدات الصفحات</h1>
             <span className="inline-flex items-center gap-1 rounded-full bg-cream px-2.5 py-0.5 text-xs font-bold text-ink">
               <Eye className="h-3.5 w-3.5 text-ink-muted" />
-              تتبع مباشر
+              تتبع العملاء
             </span>
           </div>
           <p className="text-xs text-ink-muted sm:text-sm">
-            إحصائيات وتحليلات عدد الزيارات والمشاهدات الفعلية لكافة صفحات المتجر
+            إحصائيات زيارات العملاء الفعلية للصفحة الرئيسية وصفحات تفاصيل المنتجات (مستثنى منها زيارات الإدارة)
           </p>
         </div>
 
@@ -75,7 +81,7 @@ export default function PageViewsAdmin() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="بحث بمسار الصفحة..."
+              placeholder="بحث بالاسم أو المسار..."
               className="input pr-9 text-xs"
             />
           </div>
@@ -92,27 +98,27 @@ export default function PageViewsAdmin() {
           <p className="mt-1 text-2xl font-extrabold text-ink">
             {totalPageViews.toLocaleString('ar-EG')}
           </p>
-          <p className="mt-0.5 text-[0.65rem] text-ink-muted">مجموع الزيارات عبر كل مسارات المتجر</p>
+          <p className="mt-0.5 text-[0.65rem] text-ink-muted">مجموع زيارات العملاء الموثقة</p>
         </div>
 
         <div className="card p-4">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold text-ink-muted">الصفحات المسجلة</p>
+            <p className="text-xs font-bold text-ink-muted">الصفحات المتتبعة</p>
             <Compass className="h-4 w-4 text-ink-muted" />
           </div>
           <p className="mt-1 text-2xl font-extrabold text-ink">
             {uniquePagesCount.toLocaleString('ar-EG')}
           </p>
-          <p className="mt-0.5 text-[0.65rem] text-ink-muted">عدد المسارات الفريدة التي تمت زيارتها</p>
+          <p className="mt-0.5 text-[0.65rem] text-ink-muted">الرئيسية وصفحات المنتجات المعروضة</p>
         </div>
 
         <div className="card p-4">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold text-ink-muted">الصفحة الأكثر زيارة</p>
+            <p className="text-xs font-bold text-ink-muted">الأكثر مشاهدة</p>
             <TrendingUp className="h-4 w-4 text-emerald-600" />
           </div>
-          <p className="mt-1 text-sm font-extrabold text-ink truncate" dir="ltr" title={topViewedPage?.page_path || '-'}>
-            {topViewedPage ? topViewedPage.page_path : '-'}
+          <p className="mt-1 text-sm font-extrabold text-ink truncate" title={topViewedPage?.title || topViewedPage?.page_path || '-'}>
+            {topViewedPage ? (topViewedPage.title || topViewedPage.page_path) : '-'}
           </p>
           <p className="mt-0.5 text-[0.65rem] text-emerald-700 font-bold">
             {topViewedPage ? `${topViewedPage.view_count.toLocaleString('ar-EG')} زيارة` : 'لا توجد بيانات'}
@@ -126,11 +132,11 @@ export default function PageViewsAdmin() {
       ) : filteredViews.length === 0 ? (
         <EmptyState
           icon={Globe}
-          title={search ? 'لا توجد مسارات مطابقة للبحث' : 'سجل المشاهدات فارغ'}
+          title={search ? 'لا توجد نتائج مطابقة للبحث' : 'سجل المشاهدات فارغ'}
           text={
             search
-              ? 'جرّب البحث بمسار آخر مثل /shop أو /cart.'
-              : 'لم يتم تسجيل أي زيارات بعد. ستظهر المسارات والزيارات هنا تلقائياً فور تصفح العملاء للمتجر.'
+              ? 'جرّب البحث باسم منتج أو مسار آخر.'
+              : 'لم تسجل أي زيارات بعد. ستظهر هنا فور تصفح العملاء للصفحة الرئيسية أو المنتجات.'
           }
         />
       ) : (
@@ -139,7 +145,7 @@ export default function PageViewsAdmin() {
             <table className="w-full text-start text-sm">
               <thead className="border-b border-black/5 bg-cream-50 text-xs text-ink-muted">
                 <tr>
-                  <th className="p-3 text-start font-bold sm:p-4">مسار الصفحة</th>
+                  <th className="p-3 text-start font-bold sm:p-4">الصفحة / المنتج</th>
                   <th className="p-3 text-start font-bold sm:p-4">عدد الزيارات</th>
                   <th className="p-3 text-start font-bold sm:p-4">النسبة من الإجمالي</th>
                 </tr>
@@ -150,30 +156,62 @@ export default function PageViewsAdmin() {
                     ? ((item.view_count / totalPageViews) * 100).toFixed(1)
                     : 0
 
+                  const isHome = item.page_path === '/'
+                  const resolvedImg = item.image_url ? resolveMediaUrl(item.image_url) : null
+
                   return (
                     <tr
                       key={item.id || item.page_path}
                       className="transition-colors hover:bg-cream-50/60"
                     >
-                      {/* Page Path */}
+                      {/* Rich Page / Product Info Column */}
                       <td className="p-3 sm:p-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-sand-subtle text-[0.7rem] font-bold text-ink-muted">
                             {idx + 1}
                           </span>
-                          <span
-                            className="font-mono text-xs font-bold text-ink sm:text-sm hover:underline"
-                            dir="ltr"
-                          >
-                            {item.page_path}
-                          </span>
+
+                          {/* Thumbnail */}
+                          <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-black/10 bg-cream-100 flex items-center justify-center">
+                            {isHome ? (
+                              <Home className="h-5 w-5 text-ink-muted" />
+                            ) : resolvedImg ? (
+                              <img
+                                src={resolvedImg}
+                                alt={item.title || 'صورة المنتج'}
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                }}
+                              />
+                            ) : (
+                              <Package className="h-5 w-5 text-ink-muted" />
+                            )}
+                          </div>
+
+                          {/* Title & Link */}
+                          <div className="min-w-0">
+                            <p className="font-extrabold text-ink sm:text-sm line-clamp-1 flex items-center gap-1.5">
+                              <span>{item.title || (isHome ? 'الصفحة الرئيسية' : item.page_path)}</span>
+                            </p>
+                            <Link
+                              to={item.page_path}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-0.5 inline-flex items-center gap-1 text-[0.75rem] font-mono text-ink-muted hover:text-ink hover:underline"
+                              dir="ltr"
+                            >
+                              <span>{item.page_path}</span>
+                              <ExternalLink className="h-2.5 w-2.5" />
+                            </Link>
+                          </div>
                         </div>
                       </td>
 
                       {/* View Count */}
                       <td className="p-3 sm:p-4">
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-cream px-3 py-1 text-xs font-extrabold text-ink">
-                          <Eye className="h-3 w-3 text-ink-muted" />
+                          <Eye className="h-3.5 w-3.5 text-ink-muted" />
                           <span>{item.view_count.toLocaleString('ar-EG')}</span>
                         </span>
                       </td>
