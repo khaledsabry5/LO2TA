@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from . import models  # noqa: F401  (register models on metadata)
 from .config import settings
 from .database import Base, engine
-from .routers import auth, categories, departments, expenses, manager, orders, products, users
+from .routers import auth, categories, departments, expenses, manager, orders, page_views, products, users
 
 
 @asynccontextmanager
@@ -98,6 +98,30 @@ async def lifespan(_: FastAPI):
                             updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                         )
                     """))
+                conn.commit()
+            except Exception:
+                pass
+
+            # Page views table creation
+            try:
+                if "sqlite" in engine.url.drivername:
+                    conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS page_views (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            page_path VARCHAR(500) NOT NULL UNIQUE,
+                            view_count INTEGER NOT NULL DEFAULT 1
+                        )
+                    """))
+                    conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_page_views_page_path ON page_views (page_path)"))
+                else:
+                    conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS page_views (
+                            id SERIAL PRIMARY KEY,
+                            page_path VARCHAR(500) NOT NULL UNIQUE,
+                            view_count INTEGER NOT NULL DEFAULT 1
+                        )
+                    """))
+                    conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_page_views_page_path ON page_views (page_path)"))
                 conn.commit()
             except Exception:
                 pass
@@ -235,7 +259,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (auth.router, categories.router, departments.router, products.router, orders.router, manager.router, users.router, expenses.router):
+for r in (auth.router, categories.router, departments.router, products.router, orders.router, manager.router, users.router, expenses.router, page_views.router):
     app.include_router(r, prefix="/api")
 
 upload_dir = Path(settings.UPLOAD_DIR)

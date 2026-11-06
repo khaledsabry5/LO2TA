@@ -23,6 +23,8 @@ import Customers from './pages/dashboard/Customers'
 import Staff from './pages/dashboard/Staff'
 import Sales from './pages/dashboard/Sales'
 import ExpensesAdmin from './pages/dashboard/ExpensesAdmin'
+import PageViewsAdmin from './pages/dashboard/PageViewsAdmin'
+import { usePageTracking } from './hooks/usePageTracking'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -32,10 +34,16 @@ function ScrollToTop() {
   return null
 }
 
+function PageTracker() {
+  usePageTracking()
+  return null
+}
+
 export default function App() {
   return (
     <>
       <ScrollToTop />
+      <PageTracker />
       <Routes>
         <Route element={<StoreLayout />}>
           <Route index element={<Home />} />
@@ -63,6 +71,7 @@ export default function App() {
             <Route path="departments" element={<AdminDepartments />} />
             <Route path="categories" element={<CategoriesAdmin />} />
             <Route path="orders" element={<OrdersAdmin />} />
+            <Route path="page-views" element={<PageViewsAdmin />} />
             {/* Staff Management (Manager & Admin) */}
             <Route element={<RequireRole roles={['manager', 'admin']} redirect="/dashboard/products" />}>
               <Route path="staff" element={<Staff />} />

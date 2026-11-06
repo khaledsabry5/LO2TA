@@ -382,3 +382,15 @@ class Expense(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+
+# --------------------------------------------------------------------------- #
+# Page View Tracking (مشاهدات الصفحات)
+# --------------------------------------------------------------------------- #
+class PageView(Base):
+    __tablename__ = "page_views"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    page_path: Mapped[str] = mapped_column(String(500), unique=True, index=True, nullable=False)
+    view_count: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
+
+

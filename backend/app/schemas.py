@@ -424,3 +424,17 @@ class ExpenseListOut(BaseModel):
     total_amount: Money
     count: int
 
+
+# --------------------------------------------------------------------------- #
+# Page Views Schemas
+# --------------------------------------------------------------------------- #
+class PageViewTrack(BaseModel):
+    page_path: str = Field(min_length=1, max_length=500)
+
+
+class PageViewOut(ORM):
+    id: int
+    page_path: str
+    view_count: int
+
+

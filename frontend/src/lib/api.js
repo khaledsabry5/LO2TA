@@ -131,4 +131,8 @@ export const api = {
   updateExpense: (id, data) => request(`/expenses/${id}`, { method: 'PUT', body: data }),
   deleteExpense: (id) => request(`/expenses/${id}`, { method: 'DELETE' }),
   clearAllExpenses: () => request('/expenses', { method: 'DELETE' }),
+
+  // page views tracking
+  trackPageView: (pagePath) => request('/track-view', { method: 'POST', body: { page_path: pagePath } }),
+  getPageViews: () => request('/admin/page-views'),
 }
