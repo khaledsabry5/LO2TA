@@ -327,6 +327,29 @@ class OrderCreate(BaseModel):
         return " ".join(parts)
 
 
+class ManualOrderCreate(BaseModel):
+    items: list[OrderItemIn] = Field(min_length=1, max_length=50)
+    shipping_name: str = Field(min_length=2, max_length=150)
+    shipping_phone: str = Field(pattern=EGYPT_PHONE_REGEX, description="Egyptian phone +201...")
+    shipping_city: str = Field(min_length=2, max_length=100)
+    shipping_address: str = Field(min_length=3, max_length=500)
+    notes: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("shipping_phone", mode="before")
+    @classmethod
+    def normalize_shipping_phone(cls, v: str) -> str:
+        return normalize_egyptian_phone(v)
+
+    @field_validator("shipping_name")
+    @classmethod
+    def validate_shipping_name(cls, v: str) -> str:
+        parts = v.strip().split()
+        if len(parts) < 2:
+            raise ValueError("يجب إدخال الاسم ثنائياً على الأقل")
+        return " ".join(parts)
+
+
+
 class OrderStatusUpdate(BaseModel):
     status: OrderStatus
 

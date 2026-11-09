@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from . import models  # noqa: F401  (register models on metadata)
 from .config import settings
 from .database import Base, engine
-from .routers import auth, categories, departments, expenses, manager, orders, page_views, products, users
+from .routers import admin_orders, auth, categories, departments, expenses, manager, orders, page_views, products, users
 
 
 @asynccontextmanager
@@ -259,7 +259,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (auth.router, categories.router, departments.router, products.router, orders.router, manager.router, users.router, expenses.router, page_views.router):
+for r in (auth.router, categories.router, departments.router, products.router, orders.router, admin_orders.router, manager.router, users.router, expenses.router, page_views.router):
     app.include_router(r, prefix="/api")
 
 upload_dir = Path(settings.UPLOAD_DIR)

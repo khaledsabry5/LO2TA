@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from ..deps import DB, CustomerUser, ManagerUser, StaffUser
 from ..models import ACTIVE_ORDER_STATUSES, Order, OrderItem, OrderStatus, Product, ProductSize, UserRole
-from ..schemas import OrderCreate, OrderFulfillmentOut, OrderOut, OrderStatusUpdate
+from ..schemas import ManualOrderCreate, OrderCreate, OrderFulfillmentOut, OrderOut, OrderStatusUpdate
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -254,6 +254,112 @@ def delete_order(order_id: int, db: DB, user: StaffUser):
             status.HTTP_500_INTERNAL_SERVER_ERROR,
             f"حدث خطأ أثناء معالجة استرجاع الطلب وإعادة المنتجات للمخزون: {str(exc)}",
         )
+
+
+# ================== MANUAL ORDER CREATION (Admin + Manager) ================= #
+@router.post("/manual", response_model=OrderFulfillmentOut, status_code=status.HTTP_201_CREATED)
+def create_manual_order(data: ManualOrderCreate, db: DB, _: StaffUser):
+    """Record an offline / WhatsApp order by Admins and Managers.
+
+    STRICT CONSTRAINTS:
+    1. Does NOT require an email address.
+    2. Does NOT create or save a permanent record in Users/Customers table (customer_id is NULL).
+    3. Deducts correct quantities from active inventory and variants (sizes).
+    """
+    product_ids = list({item.product_id for item in data.items})
+    stmt = (
+        select(Product)
+        .where(Product.id.in_(product_ids))
+        .options(selectinload(Product.sizes), selectinload(Product.category))
+        .order_by(Product.id)
+    )
+    if "sqlite" not in db.bind.dialect.name:
+        stmt = stmt.with_for_update()
+
+    products = {p.id: p for p in db.scalars(stmt).all()}
+
+    # Customer details stored exclusively on Order record (Guest / Offline Order)
+    order = Order(
+        customer_id=None,
+        status=OrderStatus.PENDING,
+        shipping_name=data.shipping_name.strip(),
+        shipping_phone=data.shipping_phone.strip(),
+        shipping_city=data.shipping_city.strip(),
+        shipping_address=data.shipping_address.strip(),
+        notes=data.notes.strip() if data.notes else None,
+    )
+
+    subtotal = Decimal("0")
+    total = Decimal("0")
+
+    for item in data.items:
+        product = products.get(item.product_id)
+        if not product or not product.is_active:
+            db.rollback()
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"المنتج رقم {item.product_id} غير متاح أو متوقف")
+
+        # Variant inventory check for shoe sizes
+        is_shoe = bool(
+            product.category
+            and (
+                "حذاء" in product.category.name
+                or "أحذية" in product.category.name
+                or "shoes" in product.category.name.lower()
+            )
+        )
+        if is_shoe and product.sizes:
+            if not item.selected_size:
+                db.rollback()
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, f"يرجى تحديد المقاس للمنتج «{product.name}»")
+            size_obj = next((s for s in product.sizes if s.size == item.selected_size), None)
+            if not size_obj or size_obj.stock < item.quantity:
+                db.rollback()
+                available = size_obj.stock if size_obj else 0
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    f"الكمية المتاحة من المقاس {item.selected_size} لمنتج «{product.name}» هي {available} فقط",
+                )
+            size_obj.stock -= item.quantity
+
+        if product.stock < item.quantity:
+            db.rollback()
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"الكمية المتاحة في المخزون من «{product.name}» هي {product.stock} فقط",
+            )
+
+        product.stock -= item.quantity
+        unit = Decimal(product.price)
+        final_unit = product.final_price
+        line = final_unit * item.quantity
+        subtotal += unit * item.quantity
+        total += line
+        cat_name = product.category.name if product.category else "عام"
+
+        order.items.append(
+            OrderItem(
+                product_id=product.id,
+                product_name=product.name,
+                product_category=cat_name,
+                cost_price=product.cost_price or Decimal("0.00"),
+                unit_price=unit,
+                discount_percent=product.discount_percent,
+                final_unit_price=final_unit,
+                quantity=item.quantity,
+                line_total=line,
+                selected_size=item.selected_size,
+                selected_color=item.selected_color,
+            )
+        )
+
+    order.subtotal = subtotal
+    order.total = total
+    order.discount_total = subtotal - total
+
+    db.add(order)
+    db.commit()
+    return _load_order(db, order.id)
+
 
 
 @router.delete("")

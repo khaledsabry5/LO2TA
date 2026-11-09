@@ -110,6 +110,7 @@ export const api = {
   fulfillment: (params) => request('/orders', { params }),
   setOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PUT', body: { status } }),
   deleteOrder: (id) => request(`/orders/${id}`, { method: 'DELETE' }),
+  createManualOrder: (data) => request('/admin/orders/manual', { method: 'POST', body: data }),
 
   // manager only
   analytics: () => request('/manager/analytics'),

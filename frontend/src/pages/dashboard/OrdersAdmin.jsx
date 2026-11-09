@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
-import { MapPin, Package, Phone, CheckCircle2, Clock, Truck, AlertOctagon, Trash2 } from 'lucide-react'
+import { MapPin, Package, Phone, CheckCircle2, Clock, Truck, AlertOctagon, Trash2, Plus } from 'lucide-react'
+import WhatsAppIcon from '../../components/icons/WhatsAppIcon'
 import { api } from '../../lib/api'
 import { ACTIVE_ORDER_STATUS_LIST, ORDER_STATUS_LIST, formatDate, money } from '../../lib/format'
 import { PageLoader, EmptyState, Alert } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
+import ManualOrderModal from './ManualOrderModal'
 
 export default function OrdersAdmin() {
   const { isManager } = useAuth()
@@ -13,6 +15,7 @@ export default function OrdersAdmin() {
   const [updatingId, setUpdatingId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
   const [msg, setMsg] = useState('')
+  const [showManualOrderModal, setShowManualOrderModal] = useState(false)
 
   const loadOrders = async () => {
     setLoading(true)
@@ -127,6 +130,16 @@ export default function OrdersAdmin() {
 
         {/* Actions & Status filter */}
         <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setShowManualOrderModal(true)}
+            className="btn flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-xs sm:text-sm font-extrabold shadow-sm transition"
+            title="إضافة طلب خارجي / واتساب مباشر"
+          >
+            <WhatsAppIcon className="h-4 w-4" />
+            <span>إضافة طلب واتساب</span>
+          </button>
+
           <div className="w-full sm:w-64">
             <select
               value={statusFilter}
@@ -284,6 +297,16 @@ export default function OrdersAdmin() {
           </div>
         </div>
       )}
+
+      {/* Manual / WhatsApp Order Modal */}
+      <ManualOrderModal
+        isOpen={showManualOrderModal}
+        onClose={() => setShowManualOrderModal(false)}
+        onSuccess={(newOrder) => {
+          setMsg(`تم تسجيل طلب واتساب #${newOrder.id} بنجاح وتم خصم الكميات من المخزون`)
+          loadOrders()
+        }}
+      />
     </div>
   )
 }
