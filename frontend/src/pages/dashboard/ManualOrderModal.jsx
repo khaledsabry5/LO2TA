@@ -17,7 +17,7 @@ import {
   Check,
 } from 'lucide-react'
 import WhatsAppIcon from '../../components/icons/WhatsAppIcon'
-import { api } from '../../lib/api'
+import { api, tokenStore } from '../../lib/api'
 import { money, resolveMediaUrl } from '../../lib/format'
 import { Spinner } from '../../components/ui'
 
@@ -25,6 +25,7 @@ export default function ManualOrderModal({ isOpen, onClose, onSuccess }) {
   // Store all active products
   const [products, setProducts] = useState([])
   const [loadingProducts, setLoadingProducts] = useState(false)
+  const [fetchProductsError, setFetchProductsError] = useState('')
 
   // Rich Combobox State
   const [comboboxOpen, setComboboxOpen] = useState(false)
@@ -64,11 +65,133 @@ export default function ManualOrderModal({ isOpen, onClose, onSuccess }) {
     }
   }, [])
 
+  // Function to fetch and map products with fallback
+  const loadStoreProducts = async (isCurrent) => {
+    setLoadingProducts(true)
+    setFetchProductsError('')
+    try {
+      let rawItems = []
+
+      // 1. First attempt: Staff products endpoint (protected, carries auth headers automatically)
+      const token = tokenStore.get()
+      if (token) {
+        try {
+          const adminRes = await api.manageProducts({ limit: 200 })
+          if (adminRes?.items && Array.isArray(adminRes.items) && adminRes.items.length > 0) {
+            rawItems = adminRes.items
+          } else if (Array.isArray(adminRes) && adminRes.length > 0) {
+            rawItems = adminRes
+          }
+        } catch (adminErr) {
+          console.warn('api.manageProducts failed, falling back to public catalog:', adminErr)
+        }
+      }
+
+      // 2. Second attempt / Fallback: Public products catalog
+      if (!rawItems || rawItems.length === 0) {
+        const publicRes = await api.products({ limit: 100 })
+        if (publicRes?.items && Array.isArray(publicRes.items)) {
+          rawItems = publicRes.items
+        } else if (Array.isArray(publicRes)) {
+          rawItems = publicRes
+        }
+      }
+
+      if (isCurrent && !isCurrent()) return
+
+      // 3. Normalization and robust mapping:
+      // Keep all items where is_active is not explicitly false (public endpoint doesn't return is_active field)
+      const valid = (rawItems || []).filter(
+        (p) => p && (p.is_active === undefined || p.is_active === null || Boolean(p.is_active))
+      )
+
+      const normalized = valid.map((p) => {
+        // Resolve primary image / thumbnail
+        const primaryImg =
+          p.image_url ||
+          (Array.isArray(p.media) && p.media.length > 0 ? p.media[0]?.url : null) ||
+          null
+
+        // Map sizes array
+        const mappedSizes = Array.isArray(p.sizes)
+          ? p.sizes.map((s) => ({
+              id: s.id || s.size,
+              size: s.size,
+              stock: Number(s.stock ?? 0),
+            }))
+          : []
+
+        // Calculate aggregate stock safely
+        let stockNum = 0
+        if (p.stock !== undefined && p.stock !== null) {
+          stockNum = Number(p.stock) || 0
+        } else if (mappedSizes.length > 0) {
+          stockNum = mappedSizes.reduce((sum, s) => sum + s.stock, 0)
+        } else if (p.in_stock) {
+          stockNum = 10
+        }
+
+        // Map colors array
+        const mappedColors = Array.isArray(p.colors)
+          ? p.colors.map((c) => ({
+              id: typeof c === 'object' ? (c.id || c.name) : c,
+              name: typeof c === 'object' ? c.name : String(c),
+              code: typeof c === 'object' ? c.code || null : null,
+            }))
+          : []
+
+        // Resolve category
+        const catObj =
+          p.category && typeof p.category === 'object'
+            ? p.category
+            : Array.isArray(p.categories) && p.categories[0]
+            ? p.categories[0]
+            : { name: typeof p.category === 'string' ? p.category : 'عام' }
+
+        return {
+          id: p.id,
+          name: p.name || `منتج #${p.id}`,
+          description: p.description || '',
+          price: Number(p.price || 0),
+          final_price: Number(p.final_price || p.price || 0),
+          cost_price: Number(p.cost_price || 0),
+          discount_percent: Number(p.discount_percent || 0),
+          has_discount: Boolean(p.has_discount || (p.discount_percent && p.discount_percent > 0)),
+          stock: stockNum,
+          in_stock: p.in_stock !== undefined ? Boolean(p.in_stock) : stockNum > 0,
+          is_active: p.is_active === undefined ? true : Boolean(p.is_active),
+          image_url: primaryImg,
+          media:
+            Array.isArray(p.media) && p.media.length > 0
+              ? p.media
+              : primaryImg
+              ? [{ id: 0, url: primaryImg, media_type: 'image', sort_order: 0 }]
+              : [],
+          sizes: mappedSizes,
+          colors: mappedColors,
+          category: catObj,
+        }
+      })
+
+      setProducts(normalized)
+    } catch (err) {
+      console.error('Failed to load products for manual order modal:', err)
+      if (isCurrent && !isCurrent()) return
+      setProducts([])
+      setFetchProductsError('تعذر تحميل قائمة المنتجات من الخادم. يرجى التأكد من تشغيل الخادم والاتصال بالإنترنت.')
+    } finally {
+      if (!isCurrent || isCurrent()) {
+        setLoadingProducts(false)
+      }
+    }
+  }
+
   // Load active products on open
   useEffect(() => {
     if (!isOpen) return
     setFormError('')
     setSelectionError('')
+    setFetchProductsError('')
     setItems([])
     setSelectedProduct(null)
     setSelectedColor('')
@@ -83,20 +206,7 @@ export default function ManualOrderModal({ isOpen, onClose, onSuccess }) {
     setComboboxOpen(false)
 
     let active = true
-    setLoadingProducts(true)
-    api
-      .products({ limit: 100 })
-      .then((res) => {
-        if (!active) return
-        const list = res?.items || (Array.isArray(res) ? res : [])
-        setProducts(list.filter((p) => p.is_active))
-      })
-      .catch((err) => {
-        console.error('Failed to load products for manual order modal:', err)
-      })
-      .finally(() => {
-        if (active) setLoadingProducts(false)
-      })
+    loadStoreProducts(() => active)
 
     return () => {
       active = false
@@ -285,9 +395,13 @@ export default function ManualOrderModal({ isOpen, onClose, onSuccess }) {
   }
 
   // Selected product thumbnail
-  const selectedProductMedia =
-    selectedProduct?.media && selectedProduct.media.length > 0 ? selectedProduct.media[0] : null
-  const selectedProductImg = selectedProductMedia ? resolveMediaUrl(selectedProductMedia.url) : null
+  const selectedProductImg = selectedProduct
+    ? (selectedProduct.image_url
+        ? resolveMediaUrl(selectedProduct.image_url)
+        : selectedProduct.media && selectedProduct.media.length > 0
+        ? resolveMediaUrl(selectedProduct.media[0].url)
+        : null)
+    : null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -356,7 +470,12 @@ export default function ManualOrderModal({ isOpen, onClose, onSuccess }) {
                   comboboxOpen ? 'border-emerald-600 ring-2 ring-emerald-500/20' : 'border-black/10'
                 }`}
               >
-                {selectedProduct ? (
+                {loadingProducts ? (
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-emerald-800 font-bold">
+                    <Spinner size="sm" />
+                    <span>جاري تحميل قائمة المنتجات من المتجر...</span>
+                  </div>
+                ) : selectedProduct ? (
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="h-9 w-9 shrink-0 overflow-hidden rounded-xl border border-black/10 bg-cream flex items-center justify-center">
                       {selectedProductImg ? (
@@ -401,16 +520,35 @@ export default function ManualOrderModal({ isOpen, onClose, onSuccess }) {
                   </div>
 
                   {loadingProducts ? (
-                    <div className="p-4 text-center text-xs text-ink-muted flex items-center justify-center gap-2">
-                      <Spinner size="sm" />
-                      <span>جاري تحميل المنتجات...</span>
+                    <div className="p-6 text-center text-xs text-ink-muted flex flex-col items-center justify-center gap-2">
+                      <Spinner size="md" />
+                      <span className="font-bold text-ink">جاري تحميل المنتجات من الخادم...</span>
+                    </div>
+                  ) : fetchProductsError ? (
+                    <div className="p-5 text-center text-xs space-y-2.5">
+                      <p className="font-bold text-rose-600">{fetchProductsError}</p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          loadStoreProducts()
+                        }}
+                        className="btn bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs py-1.5 px-3 rounded-xl font-bold shadow-xs transition"
+                      >
+                        إعادة المحاولة
+                      </button>
                     </div>
                   ) : filteredProducts.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-ink-muted">لا توجد منتجات مطابقة للبحث</div>
+                    <div className="p-6 text-center text-xs text-ink-muted">
+                      {productSearch ? 'لا توجد منتجات مطابقة للبحث' : 'لا توجد منتجات متاحة في المتجر حالياً'}
+                    </div>
                   ) : (
                     filteredProducts.map((p) => {
-                      const firstMedia = p.media && p.media.length > 0 ? p.media[0] : null
-                      const img = firstMedia ? resolveMediaUrl(firstMedia.url) : null
+                      const img = p.image_url
+                        ? resolveMediaUrl(p.image_url)
+                        : p.media && p.media.length > 0
+                        ? resolveMediaUrl(p.media[0].url)
+                        : null
                       const isSelected = selectedProduct?.id === p.id
 
                       return (
@@ -583,8 +721,11 @@ export default function ManualOrderModal({ isOpen, onClose, onSuccess }) {
               <div className="space-y-2">
                 {items.map((it, idx) => {
                   const p = it.product
-                  const firstMedia = p.media && p.media.length > 0 ? p.media[0] : null
-                  const img = firstMedia ? resolveMediaUrl(firstMedia.url) : null
+                  const img = p.image_url
+                    ? resolveMediaUrl(p.image_url)
+                    : p.media && p.media.length > 0
+                    ? resolveMediaUrl(p.media[0].url)
+                    : null
                   const itemTotal = Number(p.final_price || p.price || 0) * (it.quantity || 1)
 
                   return (
